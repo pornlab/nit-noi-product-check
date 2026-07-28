@@ -7,6 +7,7 @@ export const paths = {
     users: '/dashboard/users',
     positions: '/dashboard/positions',
     zones: '/dashboard/zones',
+    suppliers: '/dashboard/suppliers',
     myZones: '/dashboard/my-zones',
   },
 } as const;

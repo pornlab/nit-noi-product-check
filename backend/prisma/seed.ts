@@ -10,6 +10,35 @@ const ORG_NAME = 'Nit Noi Coffee';
 const positionsSeed = ['Владелец', 'Администратор кафе', 'Кондитер'];
 const zonesSeed = ['Бар', 'Кухня', 'Кондитерская', 'Основной склад'];
 
+const suppliersSeed: Array<{
+  name: string;
+  contactPerson: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  taxId: string | null;
+  notes: string | null;
+}> = [
+  {
+    name: 'Makro Phuket',
+    contactPerson: null,
+    phone: null,
+    email: null,
+    address: 'Wichit, Phuket',
+    taxId: null,
+    notes: 'Основной супермаркет для оптовых закупок',
+  },
+  {
+    name: 'Дед с авокадо на рынке Раваи',
+    contactPerson: 'Ной',
+    phone: null,
+    email: null,
+    address: 'Rawai Market',
+    taxId: null,
+    notes: 'Частный продавец, обычно приезжает утром',
+  },
+];
+
 const usersSeed: Array<{
   email: string;
   name: string;
@@ -76,6 +105,27 @@ async function main(): Promise<void> {
     zoneByName.set(name, zone.id);
     // eslint-disable-next-line no-console
     console.log(`  Zone: ${name}`);
+  }
+
+  for (const s of suppliersSeed) {
+    const normalizedName = normalizeName(s.name);
+    await prisma.supplier.upsert({
+      where: { organizationId_normalizedName: { organizationId: organization.id, normalizedName } },
+      update: {},
+      create: {
+        organizationId: organization.id,
+        name: s.name,
+        normalizedName,
+        contactPerson: s.contactPerson,
+        phone: s.phone,
+        email: s.email,
+        address: s.address,
+        taxId: s.taxId,
+        notes: s.notes,
+      },
+    });
+    // eslint-disable-next-line no-console
+    console.log(`  Supplier: ${s.name}`);
   }
 
   for (const seed of usersSeed) {

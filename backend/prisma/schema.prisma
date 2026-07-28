@@ -24,8 +24,33 @@ model Organization {
   users     User[]
   positions Position[]
   zones     Zone[]
+  suppliers Supplier[]
 
   @@map("organizations")
+}
+
+model Supplier {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  normalizedName String
+  contactPerson  String?
+  phone          String?
+  email          String?
+  address        String?
+  taxId          String?
+  notes          String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, normalizedName])
+  @@index([organizationId])
+  @@index([organizationId, isActive])
+  @@index([organizationId, name])
+  @@map("suppliers")
 }
 
 model User {
