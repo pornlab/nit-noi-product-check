@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { PublicUser, UsersService } from '../users/users.service';
+import { UsersService, PublicUser } from '../users/users.service';
 import type { JwtPayload } from './strategies/jwt.strategy';
 
 export interface LoginResult {
@@ -17,8 +17,9 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string): Promise<LoginResult> {
-    const user = await this.users.findByEmail(email);
-    if (!user) {
+    const normalized = email.trim().toLowerCase();
+    const user = await this.users.findByEmail(normalized);
+    if (!user || !user.isActive) {
       throw new UnauthorizedException('Неверный email или пароль');
     }
 
@@ -32,6 +33,7 @@ export class AuthService {
       sub: publicUser.id,
       email: publicUser.email,
       role: publicUser.role,
+      organizationId: publicUser.organizationId,
     };
     const accessToken = await this.jwt.signAsync(payload);
 

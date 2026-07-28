@@ -40,6 +40,26 @@
 └── README.md
 ```
 
+## Базы данных
+
+Проект использует **две отдельные базы** в PostgreSQL:
+
+| База            | Назначение                                          |
+| --------------- | --------------------------------------------------- |
+| `products_dev`  | Локальная разработка (`DATABASE_URL` в `.env`).     |
+| `products_test` | Интеграционные / API тесты (передаётся через `TEST_DATABASE_URL` или временно через `DATABASE_URL=...` перед командой). |
+
+> ⚠️ **`prisma migrate reset` УНИЧТОЖАЕТ данные** в базе, на которую указывает `DATABASE_URL`. Разрешено запускать только против `products_dev` или `products_test`. Никогда — против production или чужой существующей базы.
+>
+> При запуске проекта на общем PostgreSQL-сервере обязательно проверяйте `DATABASE_URL` перед `migrate reset` / `migrate dev`. При сомнении сначала сделайте `\l` в `psql` и убедитесь, что база — ваша dev/test.
+
+Создание баз вручную (если PostgreSQL уже поднят):
+
+```bash
+docker exec -it <postgres-container> psql -U <user> -c 'CREATE DATABASE products_dev;'
+docker exec -it <postgres-container> psql -U <user> -c 'CREATE DATABASE products_test;'
+```
+
 ## Настройка `.env`
 
 В корне проекта:

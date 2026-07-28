@@ -3,11 +3,15 @@ import { AuthService, LoginResult } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
-import type { PublicUser } from '../users/users.service';
+import type { AuthUser } from './auth-user';
+import { UsersService, UserFullProfile } from '../users/users.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly users: UsersService,
+  ) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -17,7 +21,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  me(@CurrentUser() user: PublicUser): PublicUser {
-    return user;
+  me(@CurrentUser() user: AuthUser): Promise<UserFullProfile> {
+    return this.users.getFullProfile(user.id);
   }
 }
