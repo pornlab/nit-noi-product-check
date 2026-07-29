@@ -13,6 +13,19 @@ enum Role {
   employee
 }
 
+enum Unit {
+  PIECE
+  GRAM
+  KILOGRAM
+  MILLILITER
+  LITER
+  PACK
+  BOX
+  BOTTLE
+  CAN
+  BAG
+}
+
 model Organization {
   id          String   @id @default(uuid())
   name        String
@@ -24,9 +37,64 @@ model Organization {
   users     User[]
   positions Position[]
   zones     Zone[]
-  suppliers Supplier[]
+  suppliers  Supplier[]
+  categories Category[]
+  products   Product[]
 
   @@map("organizations")
+}
+
+model Category {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  normalizedName String
+  description    String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  products     Product[]
+
+  @@unique([organizationId, normalizedName])
+  @@index([organizationId])
+  @@index([organizationId, isActive])
+  @@index([organizationId, name])
+  @@map("categories")
+}
+
+model Product {
+  id                 String   @id @default(uuid())
+  organizationId     String
+  categoryId         String?
+  name               String
+  normalizedName     String
+  description        String?
+  baseUnit           Unit
+  sku                String?
+  normalizedSku      String?
+  barcode            String?
+  normalizedBarcode  String?
+  isInventoryTracked Boolean  @default(true)
+  isPurchasable      Boolean  @default(true)
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, normalizedName])
+  @@unique([organizationId, normalizedSku])
+  @@unique([organizationId, normalizedBarcode])
+  @@index([organizationId])
+  @@index([organizationId, categoryId])
+  @@index([organizationId, isActive])
+  @@index([organizationId, isInventoryTracked])
+  @@index([organizationId, isPurchasable])
+  @@index([organizationId, baseUnit])
+  @@map("products")
 }
 
 model Supplier {

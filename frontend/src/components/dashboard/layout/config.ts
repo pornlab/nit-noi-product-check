@@ -16,5 +16,7 @@ export function getNavItems(role: UserRole | undefined): NavItemConfig[] {
     { key: 'positions', title: 'Должности', href: paths.dashboard.positions, icon: 'identification-badge' },
     { key: 'zones', title: 'Зоны', href: paths.dashboard.zones, icon: 'map-pin' },
     { key: 'suppliers', title: 'Поставщики', href: paths.dashboard.suppliers, icon: 'truck' },
+    { key: 'categories', title: 'Категории', href: paths.dashboard.categories, icon: 'tag' },
+    { key: 'products', title: 'Товары', href: paths.dashboard.products, icon: 'package' },
   ];
 }

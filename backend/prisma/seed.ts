@@ -1,4 +1,4 @@
-import { PrismaClient, Role } from '@prisma/client';
+import { PrismaClient, Role, Unit } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -9,6 +9,32 @@ const ORG_NAME = 'Nit Noi Coffee';
 
 const positionsSeed = ['Владелец', 'Администратор кафе', 'Кондитер'];
 const zonesSeed = ['Бар', 'Кухня', 'Кондитерская', 'Основной склад'];
+
+const categoriesSeed: Array<{ name: string; description: string | null }> = [
+  { name: 'Молочные продукты', description: 'Молоко, сливки, масло и сыры' },
+  { name: 'Овощи и фрукты', description: null },
+  { name: 'Мука и сухие ингредиенты', description: null },
+  { name: 'Упаковка', description: 'Стаканы, крышки, коробки для выпечки' },
+  { name: 'Бытовая химия', description: null },
+];
+
+const productsSeed: Array<{
+  name: string;
+  categoryName: string | null;
+  baseUnit: Unit;
+  description: string | null;
+  isInventoryTracked: boolean;
+  isPurchasable: boolean;
+}> = [
+  { name: 'Молоко цельное', categoryName: 'Молочные продукты', baseUnit: 'MILLILITER', description: 'Молоко 3,2% для кофе и выпечки', isInventoryTracked: true, isPurchasable: true },
+  { name: 'Сливки', categoryName: 'Молочные продукты', baseUnit: 'MILLILITER', description: null, isInventoryTracked: true, isPurchasable: true },
+  { name: 'Яйцо куриное', categoryName: 'Молочные продукты', baseUnit: 'PIECE', description: null, isInventoryTracked: true, isPurchasable: true },
+  { name: 'Мука пшеничная', categoryName: 'Мука и сухие ингредиенты', baseUnit: 'GRAM', description: null, isInventoryTracked: true, isPurchasable: true },
+  { name: 'Сахар', categoryName: 'Мука и сухие ингредиенты', baseUnit: 'GRAM', description: null, isInventoryTracked: true, isPurchasable: true },
+  { name: 'Авокадо', categoryName: 'Овощи и фрукты', baseUnit: 'PIECE', description: 'Для тостов и салатов', isInventoryTracked: true, isPurchasable: true },
+  { name: 'Коробка для торта', categoryName: 'Упаковка', baseUnit: 'PIECE', description: 'Белая с окном', isInventoryTracked: true, isPurchasable: true },
+  { name: 'Средство для мытья посуды', categoryName: 'Бытовая химия', baseUnit: 'MILLILITER', description: null, isInventoryTracked: true, isPurchasable: true },
+];
 
 const suppliersSeed: Array<{
   name: string;
@@ -105,6 +131,50 @@ async function main(): Promise<void> {
     zoneByName.set(name, zone.id);
     // eslint-disable-next-line no-console
     console.log(`  Zone: ${name}`);
+  }
+
+  for (const c of categoriesSeed) {
+    const normalizedName = normalizeName(c.name);
+    await prisma.category.upsert({
+      where: { organizationId_normalizedName: { organizationId: organization.id, normalizedName } },
+      update: {},
+      create: {
+        organizationId: organization.id,
+        name: c.name,
+        normalizedName,
+        description: c.description,
+      },
+    });
+    // eslint-disable-next-line no-console
+    console.log(`  Category: ${c.name}`);
+  }
+
+  const categoryByName = new Map<string, string>();
+  const seededCategories = await prisma.category.findMany({
+    where: { organizationId: organization.id },
+    select: { id: true, name: true },
+  });
+  for (const c of seededCategories) categoryByName.set(c.name, c.id);
+
+  for (const p of productsSeed) {
+    const normalizedName = normalizeName(p.name);
+    const categoryId = p.categoryName ? categoryByName.get(p.categoryName) ?? null : null;
+    await prisma.product.upsert({
+      where: { organizationId_normalizedName: { organizationId: organization.id, normalizedName } },
+      update: {},
+      create: {
+        organizationId: organization.id,
+        categoryId,
+        name: p.name,
+        normalizedName,
+        description: p.description,
+        baseUnit: p.baseUnit,
+        isInventoryTracked: p.isInventoryTracked,
+        isPurchasable: p.isPurchasable,
+      },
+    });
+    // eslint-disable-next-line no-console
+    console.log(`  Product: ${p.name}`);
   }
 
   for (const s of suppliersSeed) {
