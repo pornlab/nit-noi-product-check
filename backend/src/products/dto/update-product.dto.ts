@@ -4,10 +4,13 @@ import {
   IsBoolean,
   IsEnum,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
+  Min,
   ValidateIf,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
@@ -74,4 +77,18 @@ export class UpdateProductDto {
   @IsUUID('4', { each: true })
   @ArrayUnique({ message: 'Зоны не должны повторяться' })
   zoneIds?: string[];
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsNumber({ maxDecimalPlaces: 3 }, { message: 'Минимальный запас должен быть числом (до 3 знаков)' })
+  @Min(0, { message: 'Минимальный запас не может быть отрицательным' })
+  @Max(1_000_000, { message: 'Слишком большое значение' })
+  minQuantity?: number | null;
+
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsNumber({ maxDecimalPlaces: 3 }, { message: 'Оптимальный запас должен быть числом (до 3 знаков)' })
+  @Min(0, { message: 'Оптимальный запас не может быть отрицательным' })
+  @Max(1_000_000, { message: 'Слишком большое значение' })
+  optimalQuantity?: number | null;
 }

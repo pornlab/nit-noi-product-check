@@ -14,8 +14,10 @@ export interface ProductZoneRef {
 export interface ProductStockZoneEntry {
   zoneId: string;
   zoneName: string;
-  quantity: string;
-  completedAt: string;
+  /** null, если в зоне ещё не было инвентаризации. */
+  quantity: string | null;
+  /** null, если в зоне ещё не было инвентаризации. */
+  completedAt: string | null;
   receivedAfter: string;
 }
 
@@ -30,6 +32,8 @@ export interface Product {
   isInventoryTracked: boolean;
   isPurchasable: boolean;
   isActive: boolean;
+  minQuantity: string | null;
+  optimalQuantity: string | null;
   createdAt: string;
   updatedAt: string;
   zones: ProductZoneRef[];
@@ -51,6 +55,8 @@ export interface CreateProductInput {
   isInventoryTracked?: boolean;
   isPurchasable?: boolean;
   zoneIds?: string[];
+  minQuantity?: number | null;
+  optimalQuantity?: number | null;
 }
 
 export interface UpdateProductInput {
@@ -64,6 +70,8 @@ export interface UpdateProductInput {
   isPurchasable?: boolean;
   isActive?: boolean;
   zoneIds?: string[];
+  minQuantity?: number | null;
+  optimalQuantity?: number | null;
 }
 
 export interface ProductFilters {

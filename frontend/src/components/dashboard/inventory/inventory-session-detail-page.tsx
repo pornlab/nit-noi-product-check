@@ -79,14 +79,13 @@ function Meta({ items }: { items: Field[] }): React.JSX.Element {
   );
 }
 
-/** Помечаем строку как «изменённую», если updatedAt ощутимо позже completedAt сессии. */
-function isItemEdited(item: InventorySessionDetailItem, completedAt: string | null): boolean {
-  if (!completedAt) return item.updatedBy !== null;
-  // Prisma @default(now()) + @updatedAt для новой строки дают равные значения, но у нас
-  // completedAt устанавливается на POST и обычно на несколько мс раньше строки items.
-  // Считаем правкой, если разница > 2 сек ИЛИ есть updatedBy.
-  if (item.updatedBy !== null) return true;
-  return new Date(item.updatedAt).getTime() - new Date(completedAt).getTime() > 2000;
+/**
+ * Строка помечается «исправлено», только если её фактически правили —
+ * т.е. backend в updateItemQuantity выставил updatedBy.
+ * На создании сессии updatedBy всегда null.
+ */
+function isItemEdited(item: InventorySessionDetailItem): boolean {
+  return item.updatedBy !== null;
 }
 
 export function InventorySessionDetailPage({ sessionId }: { sessionId: string }): React.JSX.Element {
@@ -220,7 +219,7 @@ export function InventorySessionDetailPage({ sessionId }: { sessionId: string })
               </TableHead>
               <TableBody>
                 {s.items.map((it) => {
-                  const edited = isItemEdited(it, s.completedAt);
+                  const edited = isItemEdited(it);
                   return (
                     <TableRow key={it.id}>
                       <TableCell sx={{ color: 'text.secondary' }}>

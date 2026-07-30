@@ -31,6 +31,8 @@ import { unitLabels } from '@/types/unit';
 
 const UNIT_VALUES: [Unit, ...Unit[]] = ['PIECE', 'GRAM', 'KILOGRAM', 'MILLILITER', 'LITER', 'PACK', 'BOX', 'BOTTLE', 'CAN', 'BAG'];
 
+const QTY_RE = /^\d*(\.\d{0,3})?$/;
+
 const schema = zod.object({
   name: zod.string().trim().min(1, 'Название обязательно').max(200),
   description: zod.string().trim().max(2000).optional().or(zod.literal('')),
@@ -41,6 +43,8 @@ const schema = zod.object({
   isInventoryTracked: zod.boolean(),
   isPurchasable: zod.boolean(),
   zoneIds: zod.array(zod.string()),
+  minQuantity: zod.string().refine((v) => v === '' || QTY_RE.test(v.replace(',', '.')), 'Число, до 3 знаков'),
+  optimalQuantity: zod.string().refine((v) => v === '' || QTY_RE.test(v.replace(',', '.')), 'Число, до 3 знаков'),
 });
 
 type Values = zod.infer<typeof schema>;
@@ -48,9 +52,15 @@ type Values = zod.infer<typeof schema>;
 const empty: Values = {
   name: '', description: '', categoryId: '', baseUnit: 'PIECE',
   sku: '', barcode: '', isInventoryTracked: true, isPurchasable: true, zoneIds: [],
+  minQuantity: '', optimalQuantity: '',
 };
 
 const toNull = (s?: string): string | null => (s && s.trim().length > 0 ? s.trim() : null);
+const toNumOrNull = (s?: string): number | null => {
+  if (!s || s.trim().length === 0) return null;
+  const n = Number(s.replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+};
 
 export interface ProductDialogProps {
   open: boolean;
@@ -85,6 +95,8 @@ export function ProductDialog({
         isInventoryTracked: product.isInventoryTracked,
         isPurchasable: product.isPurchasable,
         zoneIds: (product.zones ?? []).map((z) => z.id),
+        minQuantity: product.minQuantity ?? '',
+        optimalQuantity: product.optimalQuantity ?? '',
       });
     } else {
       reset(empty);
@@ -102,6 +114,8 @@ export function ProductDialog({
       isInventoryTracked: v.isInventoryTracked,
       isPurchasable: v.isPurchasable,
       zoneIds: v.zoneIds,
+      minQuantity: toNumOrNull(v.minQuantity),
+      optimalQuantity: toNumOrNull(v.optimalQuantity),
     };
     void onSubmit(payload);
   };
@@ -232,6 +246,34 @@ export function ProductDialog({
               label="Использовать в закупках"
             />
           )} />
+
+          <Divider />
+          <Typography variant="overline" color="text.secondary">Целевой запас</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Не влияет на инвентаризацию и остатки. Используется для будущих списков закупок.
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <Controller name="minQuantity" control={control} render={({ field }) => (
+              <TextField
+                {...field}
+                label="Минимальный запас"
+                fullWidth
+                error={Boolean(errors.minQuantity)}
+                helperText={errors.minQuantity?.message}
+                inputProps={{ inputMode: 'decimal', autoComplete: 'off' }}
+              />
+            )} />
+            <Controller name="optimalQuantity" control={control} render={({ field }) => (
+              <TextField
+                {...field}
+                label="Оптимальный запас"
+                fullWidth
+                error={Boolean(errors.optimalQuantity)}
+                helperText={errors.optimalQuantity?.message}
+                inputProps={{ inputMode: 'decimal', autoComplete: 'off' }}
+              />
+            )} />
+          </Stack>
 
           {serverError ? <Alert severity="error">{serverError}</Alert> : null}
         </Stack>

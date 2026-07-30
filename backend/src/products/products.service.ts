@@ -16,10 +16,13 @@ export interface ProductPublicCategory {
 export interface ProductStockZoneEntry {
   zoneId: string;
   zoneName: string;
-  quantity: string;
-  completedAt: string;
+  /** null, если в этой зоне инвентаризации ещё не было (но приходы уже есть). */
+  quantity: string | null;
+  /** null, если в этой зоне инвентаризации ещё не было. */
+  completedAt: string | null;
   /**
-   * Сумма всех приходов (receiving allocations) в эту зону, датированных ПОСЛЕ completedAt.
+   * Сумма приходов (receiving allocations) в эту зону, датированных ПОСЛЕ completedAt.
+   * Если completedAt = null — сумма ВСЕХ приходов в эту зону.
    * Нужен, чтобы показывать «M (+N)» на странице товаров.
    */
   receivedAfter: string;
@@ -41,6 +44,8 @@ export interface ProductPublic {
   isInventoryTracked: boolean;
   isPurchasable: boolean;
   isActive: boolean;
+  minQuantity: string | null;
+  optimalQuantity: string | null;
   createdAt: Date;
   updatedAt: Date;
   zones: ProductPublicZone[];
@@ -83,6 +88,8 @@ function toPublic(
     isInventoryTracked: p.isInventoryTracked,
     isPurchasable: p.isPurchasable,
     isActive: p.isActive,
+    minQuantity: p.minQuantity === null ? null : p.minQuantity.toString(),
+    optimalQuantity: p.optimalQuantity === null ? null : p.optimalQuantity.toString(),
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
     zones: (p.zones ?? []).map((z) => ({ id: z.zone.id, name: z.zone.name })),
@@ -227,38 +234,26 @@ export class ProductsService {
   private async loadLastInventoryMap(
     orgId: string,
     productIds: string[],
-  ): Promise<Map<string, { lastQuantity: string; lastInventoryAt: string; lastStock: ProductStockZoneEntry[] }>> {
-    const result = new Map<string, { lastQuantity: string; lastInventoryAt: string; lastStock: ProductStockZoneEntry[] }>();
+  ): Promise<Map<string, { lastQuantity: string | null; lastInventoryAt: string | null; lastStock: ProductStockZoneEntry[] }>> {
+    const result = new Map<string, { lastQuantity: string | null; lastInventoryAt: string | null; lastStock: ProductStockZoneEntry[] }>();
     if (productIds.length === 0) return result;
 
-    // Одна выборка: для каждой пары (product, zone) — самая свежая COMPLETED сессия,
-    // плюс сумма приходов в эту зону, датированных строго позже её completedAt.
+    // Для каждой пары (product, zone) собираем:
+    //  - последнюю COMPLETED инвентаризацию в этой зоне (может отсутствовать);
+    //  - сумму приходов ПОСЛЕ этой инвентаризации (если её нет — всех приходов).
+    // Пары берём из UNION инвентаризаций и приходов, чтобы «свежекупленный, но ещё не пересчитанный»
+    // товар всё равно попадал в остаток.
     const rows = await this.prisma.$queryRaw<
       Array<{
         productId: string;
         zoneId: string;
         zoneName: string;
-        quantity: Prisma.Decimal;
-        completedAt: Date;
+        quantity: Prisma.Decimal | null;
+        completedAt: Date | null;
         receivedAfter: Prisma.Decimal;
       }>
     >`
-      SELECT
-        latest."productId",
-        latest."zoneId",
-        z."name"          AS "zoneName",
-        latest.quantity,
-        latest."completedAt",
-        COALESCE((
-          SELECT SUM(ra."quantity")
-          FROM "receiving_allocations" ra
-          JOIN "receiving_items" ri ON ri."id" = ra."receivingItemId" AND ri."productId" = latest."productId"
-          JOIN "receivings" r ON r."id" = ri."receivingId"
-          WHERE ra."zoneId" = latest."zoneId"
-            AND r."organizationId" = ${orgId}
-            AND r."receivedAt" > (latest."completedAt")::date
-        ), 0) AS "receivedAfter"
-      FROM (
+      WITH inv AS (
         SELECT DISTINCT ON (ii."productId", s."zoneId")
           ii."productId", s."zoneId", ii.quantity, s."completedAt"
         FROM "inventory_items" ii
@@ -268,9 +263,39 @@ export class ProductsService {
           AND s."completedAt" IS NOT NULL
           AND ii."productId" IN (${Prisma.join(productIds)})
         ORDER BY ii."productId", s."zoneId", s."completedAt" DESC, s."id" DESC
-      ) latest
-      JOIN "zones" z ON z.id = latest."zoneId"
-      ORDER BY latest."productId", z."name"
+      ),
+      recv_zones AS (
+        SELECT DISTINCT ri."productId", ra."zoneId"
+        FROM "receiving_allocations" ra
+        JOIN "receiving_items" ri ON ri."id" = ra."receivingItemId"
+        JOIN "receivings" r ON r."id" = ri."receivingId"
+        WHERE r."organizationId" = ${orgId}
+          AND ri."productId" IN (${Prisma.join(productIds)})
+      ),
+      pairs AS (
+        SELECT "productId", "zoneId" FROM inv
+        UNION
+        SELECT "productId", "zoneId" FROM recv_zones
+      )
+      SELECT
+        p."productId",
+        p."zoneId",
+        z."name"                                                            AS "zoneName",
+        inv.quantity                                                        AS "quantity",
+        inv."completedAt"                                                   AS "completedAt",
+        COALESCE((
+          SELECT SUM(ra."quantity")
+          FROM "receiving_allocations" ra
+          JOIN "receiving_items" ri ON ri."id" = ra."receivingItemId" AND ri."productId" = p."productId"
+          JOIN "receivings" r  ON r."id" = ri."receivingId"
+          WHERE ra."zoneId" = p."zoneId"
+            AND r."organizationId" = ${orgId}
+            AND (inv."completedAt" IS NULL OR r."receivedAt" > (inv."completedAt")::date)
+        ), 0)                                                                AS "receivedAfter"
+      FROM pairs p
+      JOIN "zones" z ON z.id = p."zoneId"
+      LEFT JOIN inv ON inv."productId" = p."productId" AND inv."zoneId" = p."zoneId"
+      ORDER BY p."productId", z."name"
     `;
 
     // Группируем по productId
@@ -280,18 +305,23 @@ export class ProductsService {
       arr.push({
         zoneId: r.zoneId,
         zoneName: r.zoneName,
-        quantity: r.quantity.toString(),
-        completedAt: r.completedAt.toISOString(),
+        quantity: r.quantity === null ? null : r.quantity.toString(),
+        completedAt: r.completedAt === null ? null : r.completedAt.toISOString(),
         receivedAfter: new Prisma.Decimal(r.receivedAfter).toString(),
       });
       grouped.set(r.productId, arr);
     }
 
     for (const [productId, entries] of grouped) {
-      const totalQty = entries.reduce((s, e) => s + Number(e.quantity), 0);
-      const maxAt = entries.reduce((m, e) => (e.completedAt > m ? e.completedAt : m), entries[0].completedAt);
+      const withInv = entries.filter((e) => e.completedAt !== null && e.quantity !== null);
+      const totalQty = withInv.reduce((s, e) => s + Number(e.quantity), 0);
+      // lastInventoryAt — max по не-null completedAt. null, если нигде не было инвентаризации.
+      let maxAt: string | null = null;
+      for (const e of withInv) {
+        if (e.completedAt !== null && (maxAt === null || e.completedAt > maxAt)) maxAt = e.completedAt;
+      }
       result.set(productId, {
-        lastQuantity: String(totalQty),
+        lastQuantity: withInv.length > 0 ? String(totalQty) : null,
         lastInventoryAt: maxAt,
         lastStock: entries,
       });
@@ -341,6 +371,8 @@ export class ProductsService {
       isInventoryTracked?: boolean;
       isPurchasable?: boolean;
       zoneIds?: string[];
+      minQuantity?: number | null;
+      optimalQuantity?: number | null;
     },
   ): Promise<ProductPublic> {
     if (input.categoryId) {
@@ -370,6 +402,8 @@ export class ProductsService {
           normalizedBarcode: barcode ? normalizeBarcode(barcode) : null,
           isInventoryTracked: input.isInventoryTracked ?? true,
           isPurchasable: input.isPurchasable ?? true,
+          minQuantity: input.minQuantity ?? null,
+          optimalQuantity: input.optimalQuantity ?? null,
           zones: zoneIds.length > 0
             ? { create: zoneIds.map((zoneId) => ({ zoneId, organizationId: orgId })) }
             : undefined,
@@ -402,6 +436,8 @@ export class ProductsService {
       isPurchasable: boolean;
       isActive: boolean;
       zoneIds: string[];
+      minQuantity: number | null;
+      optimalQuantity: number | null;
     }>,
   ): Promise<ProductPublic> {
     const existing = await this.prisma.product.findFirst({
@@ -436,6 +472,8 @@ export class ProductsService {
     if (input.isInventoryTracked !== undefined) data.isInventoryTracked = input.isInventoryTracked;
     if (input.isPurchasable !== undefined) data.isPurchasable = input.isPurchasable;
     if (input.isActive !== undefined) data.isActive = input.isActive;
+    if (input.minQuantity !== undefined) data.minQuantity = input.minQuantity;
+    if (input.optimalQuantity !== undefined) data.optimalQuantity = input.optimalQuantity;
     if (input.categoryId !== undefined) {
       data.category = input.categoryId === null ? { disconnect: true } : { connect: { id: input.categoryId } };
     }

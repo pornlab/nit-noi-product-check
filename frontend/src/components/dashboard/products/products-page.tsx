@@ -22,6 +22,7 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
 import { CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { InfoIcon } from '@phosphor-icons/react/dist/ssr/Info';
 import { PencilSimpleIcon } from '@phosphor-icons/react/dist/ssr/PencilSimple';
@@ -271,46 +272,42 @@ export function ProductsPage(): React.JSX.Element {
                 <TableHead>
                   <TableRow>
                     <TableCell>Название</TableCell>
-                    <TableCell>Категория</TableCell>
                     <TableCell>Зоны</TableCell>
                     <TableCell align="right">Остаток</TableCell>
                     <TableCell>Единица</TableCell>
                     <TableCell align="right">Цена</TableCell>
+                    <TableCell align="right">
+                      <Tooltip title="Оптимальный (минимальный) запас — не влияет на логику, используется для списков закупок">
+                        <span>Норма</span>
+                      </Tooltip>
+                    </TableCell>
                     {canEdit ? <TableCell align="right">Действия</TableCell> : null}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {state.items.map((p) => (
+                  {state.items.map((p) => {
+                    const severity = stockSeverity(p);
+                    return (
                     <TableRow
                       key={p.id}
                       sx={{
-                        bgcolor: p.isActive ? 'inherit' : 'action.hover',
+                        bgcolor: p.isActive
+                          ? (severity === 'critical'
+                            ? (t) => alpha(t.palette.error.main, 0.14)
+                            : severity === 'low'
+                            ? (t) => alpha(t.palette.warning.main, 0.18)
+                            : 'inherit')
+                          : 'action.hover',
                         opacity: p.isActive ? 1 : 0.72,
                       }}
                     >
-                      <TableCell>{p.name}</TableCell>
                       <TableCell>
+                        <Typography variant="body2">{p.name}</Typography>
                         {p.category ? (
-                          <Box
-                            component="button"
-                            type="button"
-                            onClick={() => setCategoryFilter(p.category!.id)}
-                            sx={{
-                              background: 'transparent',
-                              border: 'none',
-                              p: 0,
-                              cursor: 'pointer',
-                              color: categoryFilter === p.category.id ? 'primary.main' : 'inherit',
-                              textDecoration: 'none',
-                              fontSize: 'inherit',
-                              fontFamily: 'inherit',
-                              textAlign: 'left',
-                              '&:hover': { color: 'primary.main', textDecoration: 'underline' },
-                            }}
-                          >
+                          <Typography variant="caption" color="text.secondary">
                             {p.category.name}{p.category.isActive ? '' : ' (неактивна)'}
-                          </Box>
-                        ) : '—'}
+                          </Typography>
+                        ) : null}
                       </TableCell>
                       <TableCell>
                         {(p.zones ?? []).length === 0 ? (
@@ -343,6 +340,12 @@ export function ProductsPage(): React.JSX.Element {
                           unit={unitLabels[p.baseUnit]}
                         />
                       </TableCell>
+                      <TableCell align="right">
+                        <ProductStockTargetCell
+                          min={p.minQuantity}
+                          optimal={p.optimalQuantity}
+                        />
+                      </TableCell>
                       {canEdit ? (
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -356,7 +359,8 @@ export function ProductsPage(): React.JSX.Element {
                         </TableCell>
                       ) : null}
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -415,6 +419,43 @@ function currencySymbol(code: string): string {
   }
 }
 
+/**
+ * Оценка «хватает ли товара» для подсветки строки.
+ * Учитываем то, что видим на экране: последняя инвентаризация + приходы после неё.
+ * Если инвентаризации нигде не было и приходов тоже — 'unknown', подсветку не рисуем.
+ */
+function stockSeverity(p: Product): 'unknown' | 'critical' | 'low' | 'ok' {
+  const inv = p.lastQuantity === null ? null : Number(p.lastQuantity);
+  const received = (p.lastStock ?? []).reduce((s, e) => s + (Number(e.receivedAfter) || 0), 0);
+  if (inv === null && received === 0) return 'unknown';
+  const current = (inv ?? 0) + received;
+
+  const min = p.minQuantity === null ? null : Number(p.minQuantity);
+  const optimal = p.optimalQuantity === null ? null : Number(p.optimalQuantity);
+  if (min !== null && current < min) return 'critical';
+  if (optimal !== null && current < optimal) return 'low';
+  return 'ok';
+}
+
+function ProductStockTargetCell({
+  min, optimal,
+}: {
+  min: string | null;
+  optimal: string | null;
+}): React.JSX.Element {
+  if (min === null && optimal === null) {
+    return <Typography component="span" color="text.secondary">—</Typography>;
+  }
+  return (
+    <Typography component="span" sx={{ whiteSpace: 'nowrap' }}>
+      {optimal === null ? '—' : formatQty(optimal)}
+      <Box component="span" sx={{ color: 'error.main', ml: 0.5 }}>
+        ({min === null ? '—' : formatQty(min)})
+      </Box>
+    </Typography>
+  );
+}
+
 function ProductPriceCell({
   price, at, currency, unit,
 }: {
@@ -448,28 +489,31 @@ function ProductPriceCell({
 }
 
 function ProductStockCell({
-  qty, at, stock,
+  qty, stock,
 }: {
   qty: string | null;
   at: string | null;
   stock: import('@/types/product').ProductStockZoneEntry[];
 }): React.JSX.Element {
-  if (qty === null || at === null) {
+  const totalReceivedAfter = stock.reduce((s, e) => s + (Number(e.receivedAfter) || 0), 0);
+
+  // Полный «нулевой» кейс: ни инвентаризации, ни приходов.
+  if (qty === null && totalReceivedAfter === 0) {
     return <Typography component="span" color="text.secondary">—</Typography>;
   }
-  const totalReceivedAfter = stock.reduce((s, e) => s + (Number(e.receivedAfter) || 0), 0);
-  const tooltipContent = stock.length === 0 ? (
-    <Box sx={{ whiteSpace: 'nowrap' }}>{formatDateTime(at)}</Box>
-  ) : (
+
+  const tooltipContent = (
     <Box>
       {stock.map((s) => {
         const after = Number(s.receivedAfter) || 0;
+        const hasInv = s.completedAt !== null && s.quantity !== null;
         return (
           <Box key={s.zoneId} sx={{ whiteSpace: 'nowrap' }}>
-            {formatDateTime(s.completedAt)} {s.zoneName}: {formatQty(s.quantity)}
+            {hasInv ? `${formatDateTime(s.completedAt!)} ` : ''}
+            {s.zoneName}: {hasInv ? formatQty(s.quantity!) : '—'}
             {after > 0 ? (
               <Box component="span" sx={{ color: 'success.light', ml: 0.5 }}>
-                ({formatQty(String(after))})
+                (+{formatQty(String(after))})
               </Box>
             ) : null}
           </Box>
@@ -477,13 +521,14 @@ function ProductStockCell({
       })}
     </Box>
   );
+
   return (
     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
       <Typography component="span" sx={{ whiteSpace: 'nowrap' }}>
-        {formatQty(qty)}
+        {qty === null ? <Box component="span" sx={{ color: 'text.secondary' }}>—</Box> : formatQty(qty)}
         {totalReceivedAfter > 0 ? (
           <Box component="span" sx={{ color: 'success.main', ml: 0.5 }}>
-            ({formatQty(String(totalReceivedAfter))})
+            (+{formatQty(String(totalReceivedAfter))})
           </Box>
         ) : null}
       </Typography>

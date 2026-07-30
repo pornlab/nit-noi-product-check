@@ -88,6 +88,8 @@ model Product {
   isInventoryTracked Boolean  @default(true)
   isPurchasable      Boolean  @default(true)
   isActive           Boolean  @default(true)
+  minQuantity        Decimal? @db.Decimal(12, 3)
+  optimalQuantity    Decimal? @db.Decimal(12, 3)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
