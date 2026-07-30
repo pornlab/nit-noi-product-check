@@ -18,6 +18,11 @@ export interface ProductStockZoneEntry {
   zoneName: string;
   quantity: string;
   completedAt: string;
+  /**
+   * Сумма всех приходов (receiving allocations) в эту зону, датированных ПОСЛЕ completedAt.
+   * Нужен, чтобы показывать «M (+N)» на странице товаров.
+   */
+  receivedAfter: string;
 }
 
 export interface ProductPublicZone {
@@ -42,6 +47,9 @@ export interface ProductPublic {
   lastQuantity: string | null;
   lastInventoryAt: string | null;
   lastStock: ProductStockZoneEntry[];
+  lastPrice: string | null;         // цена за единицу, посчитанная от последнего поступления (cost / quantity)
+  lastPriceAt: string | null;       // дата последнего поступления (YYYY-MM-DD)
+  lastPriceCurrency: string | null; // ISO 4217 валюты того поступления
 }
 
 type ProductWithCategory = Product & {
@@ -49,9 +57,20 @@ type ProductWithCategory = Product & {
   zones?: Array<{ zone: { id: string; name: string } }>;
 };
 
+interface ProductLastPrice {
+  unitPrice: string;
+  receivedAt: string;
+  currency: string;
+}
+
 function toPublic(
   p: ProductWithCategory,
-  extra?: { lastQuantity: string | null; lastInventoryAt: string | null; lastStock: ProductStockZoneEntry[] },
+  extra?: {
+    lastQuantity: string | null;
+    lastInventoryAt: string | null;
+    lastStock: ProductStockZoneEntry[];
+  },
+  price?: ProductLastPrice,
 ): ProductPublic {
   return {
     id: p.id,
@@ -70,6 +89,9 @@ function toPublic(
     lastQuantity: extra?.lastQuantity ?? null,
     lastInventoryAt: extra?.lastInventoryAt ?? null,
     lastStock: extra?.lastStock ?? [],
+    lastPrice: price?.unitPrice ?? null,
+    lastPriceAt: price?.receivedAt ?? null,
+    lastPriceCurrency: price?.currency ?? null,
   };
 }
 
@@ -147,8 +169,53 @@ export class ProductsService {
       },
     });
 
-    const extraMap = await this.loadLastInventoryMap(orgId, items.map((it) => it.id));
-    return items.map((it) => toPublic(it, extraMap.get(it.id)));
+    const ids = items.map((it) => it.id);
+    const [extraMap, priceMap] = await Promise.all([
+      this.loadLastInventoryMap(orgId, ids),
+      this.loadLastPriceMap(orgId, ids),
+    ]);
+    return items.map((it) => toPublic(it, extraMap.get(it.id), priceMap.get(it.id)));
+  }
+
+  /**
+   * Для набора продуктов — цена за единицу из последнего поступления (cost / quantity).
+   * Один запрос: DISTINCT ON (productId) с сортировкой по receivedAt DESC.
+   */
+  private async loadLastPriceMap(
+    orgId: string,
+    productIds: string[],
+  ): Promise<Map<string, ProductLastPrice>> {
+    const result = new Map<string, ProductLastPrice>();
+    if (productIds.length === 0) return result;
+
+    const rows = await this.prisma.$queryRaw<
+      Array<{ productId: string; quantity: Prisma.Decimal; cost: Prisma.Decimal; receivedAt: Date; currency: string }>
+    >`
+      SELECT DISTINCT ON (ri."productId")
+        ri."productId",
+        ri.quantity,
+        ri.cost,
+        r."receivedAt",
+        r.currency
+      FROM "receiving_items" ri
+      JOIN "receivings" r ON r.id = ri."receivingId"
+      WHERE r."organizationId" = ${orgId}
+        AND ri."productId" IN (${Prisma.join(productIds)})
+      ORDER BY ri."productId", r."receivedAt" DESC, r."id" DESC
+    `;
+
+    for (const r of rows) {
+      const qty = new Prisma.Decimal(r.quantity);
+      if (qty.isZero()) continue; // защита от деления на 0
+      const unitPrice = new Prisma.Decimal(r.cost).div(qty);
+      result.set(r.productId, {
+        // округляем цену до 2 знаков — соответствует Decimal(12,2) в receiving_items.cost
+        unitPrice: unitPrice.toDecimalPlaces(2).toString(),
+        receivedAt: r.receivedAt.toISOString().slice(0, 10),
+        currency: r.currency,
+      });
+    }
+    return result;
   }
 
   /**
@@ -164,16 +231,33 @@ export class ProductsService {
     const result = new Map<string, { lastQuantity: string; lastInventoryAt: string; lastStock: ProductStockZoneEntry[] }>();
     if (productIds.length === 0) return result;
 
-    // Одна выборка: для каждой пары (product, zone) — самая свежая COMPLETED сессия.
+    // Одна выборка: для каждой пары (product, zone) — самая свежая COMPLETED сессия,
+    // плюс сумма приходов в эту зону, датированных строго позже её completedAt.
     const rows = await this.prisma.$queryRaw<
-      Array<{ productId: string; zoneId: string; zoneName: string; quantity: Prisma.Decimal; completedAt: Date }>
+      Array<{
+        productId: string;
+        zoneId: string;
+        zoneName: string;
+        quantity: Prisma.Decimal;
+        completedAt: Date;
+        receivedAfter: Prisma.Decimal;
+      }>
     >`
       SELECT
         latest."productId",
         latest."zoneId",
         z."name"          AS "zoneName",
         latest.quantity,
-        latest."completedAt"
+        latest."completedAt",
+        COALESCE((
+          SELECT SUM(ra."quantity")
+          FROM "receiving_allocations" ra
+          JOIN "receiving_items" ri ON ri."id" = ra."receivingItemId" AND ri."productId" = latest."productId"
+          JOIN "receivings" r ON r."id" = ri."receivingId"
+          WHERE ra."zoneId" = latest."zoneId"
+            AND r."organizationId" = ${orgId}
+            AND r."receivedAt" > (latest."completedAt")::date
+        ), 0) AS "receivedAfter"
       FROM (
         SELECT DISTINCT ON (ii."productId", s."zoneId")
           ii."productId", s."zoneId", ii.quantity, s."completedAt"
@@ -198,6 +282,7 @@ export class ProductsService {
         zoneName: r.zoneName,
         quantity: r.quantity.toString(),
         completedAt: r.completedAt.toISOString(),
+        receivedAfter: new Prisma.Decimal(r.receivedAfter).toString(),
       });
       grouped.set(r.productId, arr);
     }
@@ -226,7 +311,11 @@ export class ProductsService {
       },
     });
     if (!product) throw new NotFoundException('Товар не найден');
-    return toPublic(product);
+    const [extraMap, priceMap] = await Promise.all([
+      this.loadLastInventoryMap(orgId, [product.id]),
+      this.loadLastPriceMap(orgId, [product.id]),
+    ]);
+    return toPublic(product, extraMap.get(product.id), priceMap.get(product.id));
   }
 
   private async assertZonesBelongToOrg(orgId: string, zoneIds: string[]): Promise<void> {

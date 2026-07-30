@@ -16,6 +16,7 @@ export interface ProductStockZoneEntry {
   zoneName: string;
   quantity: string;
   completedAt: string;
+  receivedAfter: string;
 }
 
 export interface Product {
@@ -35,6 +36,9 @@ export interface Product {
   lastQuantity: string | null;
   lastInventoryAt: string | null;
   lastStock: ProductStockZoneEntry[];
+  lastPrice: string | null;
+  lastPriceAt: string | null;
+  lastPriceCurrency: string | null;
 }
 
 export interface CreateProductInput {

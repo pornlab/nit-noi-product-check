@@ -275,6 +275,7 @@ export function ProductsPage(): React.JSX.Element {
                     <TableCell>Зоны</TableCell>
                     <TableCell align="right">Остаток</TableCell>
                     <TableCell>Единица</TableCell>
+                    <TableCell align="right">Цена</TableCell>
                     {canEdit ? <TableCell align="right">Действия</TableCell> : null}
                   </TableRow>
                 </TableHead>
@@ -334,6 +335,14 @@ export function ProductsPage(): React.JSX.Element {
                         <ProductStockCell qty={p.lastQuantity} at={p.lastInventoryAt} stock={p.lastStock} />
                       </TableCell>
                       <TableCell>{unitLabels[p.baseUnit]}</TableCell>
+                      <TableCell align="right">
+                        <ProductPriceCell
+                          price={p.lastPrice}
+                          at={p.lastPriceAt}
+                          currency={p.lastPriceCurrency}
+                          unit={unitLabels[p.baseUnit]}
+                        />
+                      </TableCell>
                       {canEdit ? (
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -382,9 +391,60 @@ function formatQty(v: string): string {
 
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  const date = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
   const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  return `${date} ${time}`;
+  return `${day}.${month} ${time}`;
+}
+
+function formatDate(iso: string): string {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const [y, m, d] = iso.split('-');
+    return `${d}.${m}.${y}`;
+  }
+  return new Date(iso).toLocaleDateString('ru-RU');
+}
+
+function currencySymbol(code: string): string {
+  switch (code.toUpperCase()) {
+    case 'THB': { return '฿'; }
+    case 'USD': { return '$'; }
+    case 'EUR': { return '€'; }
+    case 'RUB': { return '₽'; }
+    default: { return code; }
+  }
+}
+
+function ProductPriceCell({
+  price, at, currency, unit,
+}: {
+  price: string | null;
+  at: string | null;
+  currency: string | null;
+  unit: string;
+}): React.JSX.Element {
+  if (price === null || at === null) {
+    return <Typography component="span" color="text.secondary">—</Typography>;
+  }
+  const n = Number(price);
+  const priceStr = Number.isFinite(n)
+    ? n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    : price;
+  const sym = currencySymbol(currency ?? 'THB');
+  const tooltipContent = (
+    <Box>
+      <Box>Последнее поступление: <b>{formatDate(at)}</b></Box>
+      <Box>{priceStr} {sym} за {unit}</Box>
+    </Box>
+  );
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
+      <Typography component="span" sx={{ whiteSpace: 'nowrap' }}>{priceStr} {sym}</Typography>
+      <Tooltip title={tooltipContent} enterTouchDelay={0} arrow>
+        <InfoIcon size={14} color="var(--mui-palette-text-secondary, #8B909B)" style={{ cursor: 'help' }} />
+      </Tooltip>
+    </Stack>
+  );
 }
 
 function ProductStockCell({
@@ -397,19 +457,36 @@ function ProductStockCell({
   if (qty === null || at === null) {
     return <Typography component="span" color="text.secondary">—</Typography>;
   }
-  const tooltipContent = (
+  const totalReceivedAfter = stock.reduce((s, e) => s + (Number(e.receivedAfter) || 0), 0);
+  const tooltipContent = stock.length === 0 ? (
+    <Box sx={{ whiteSpace: 'nowrap' }}>{formatDateTime(at)}</Box>
+  ) : (
     <Box>
-      <Box sx={{ fontWeight: 600, mb: stock.length > 0 ? 0.5 : 0 }}>{formatDateTime(at)}</Box>
-      {stock.map((s) => (
-        <Box key={s.zoneId}>
-          {s.zoneName}: {formatQty(s.quantity)}
-        </Box>
-      ))}
+      {stock.map((s) => {
+        const after = Number(s.receivedAfter) || 0;
+        return (
+          <Box key={s.zoneId} sx={{ whiteSpace: 'nowrap' }}>
+            {formatDateTime(s.completedAt)} {s.zoneName}: {formatQty(s.quantity)}
+            {after > 0 ? (
+              <Box component="span" sx={{ color: 'success.light', ml: 0.5 }}>
+                ({formatQty(String(after))})
+              </Box>
+            ) : null}
+          </Box>
+        );
+      })}
     </Box>
   );
   return (
     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
-      <Typography component="span">{formatQty(qty)}</Typography>
+      <Typography component="span" sx={{ whiteSpace: 'nowrap' }}>
+        {formatQty(qty)}
+        {totalReceivedAfter > 0 ? (
+          <Box component="span" sx={{ color: 'success.main', ml: 0.5 }}>
+            ({formatQty(String(totalReceivedAfter))})
+          </Box>
+        ) : null}
+      </Typography>
       <Tooltip title={tooltipContent} enterTouchDelay={0} arrow>
         <InfoIcon size={14} color="var(--mui-palette-text-secondary, #8B909B)" style={{ cursor: 'help' }} />
       </Tooltip>
