@@ -64,9 +64,9 @@ export function SignInForm(): React.JSX.Element {
   return (
     <Stack spacing={4}>
       <Stack spacing={1}>
-        <Typography variant="h4">Вход в систему</Typography>
+        <Typography variant="h4">Test login</Typography>
         <Typography color="text.secondary" variant="body2">
-          Складской учёт
+          NNC
         </Typography>
       </Stack>
       <form onSubmit={handleSubmit(onSubmit)}>
