@@ -22,14 +22,19 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { InfoIcon } from '@phosphor-icons/react/dist/ssr/Info';
 import { PencilSimpleIcon } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { ProhibitIcon } from '@phosphor-icons/react/dist/ssr/Prohibit';
 
 import type { Category } from '@/types/category';
 import type { CreateProductInput, Product, UpdateProductInput } from '@/types/product';
 import type { Unit } from '@/types/unit';
+import type { Zone } from '@/types/zone';
 import { unitLabels } from '@/types/unit';
 import { categoriesApi } from '@/lib/api/categories';
 import { productsApi } from '@/lib/api/products';
+import { zonesApi } from '@/lib/api/zones';
 import { useNotify } from '@/lib/api/notify';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { useUser } from '@/hooks/use-user';
@@ -48,12 +53,14 @@ export function ProductsPage(): React.JSX.Element {
   const [searchInput, setSearchInput] = React.useState('');
   const [search, setSearch] = React.useState('');
   const [categoryFilter, setCategoryFilter] = React.useState<string>(''); // '', 'none', or category id
+  const [zoneFilter, setZoneFilter] = React.useState<string>(''); // '' or zone id
   const [unitFilter, setUnitFilter] = React.useState<Unit | ''>('');
   const [activeFilter, setActiveFilter] = React.useState<ActiveFilter>('all');
   const [trackedFilter, setTrackedFilter] = React.useState<BoolFilter>('all');
   const [purchFilter, setPurchFilter] = React.useState<BoolFilter>('all');
 
   const [categories, setCategories] = React.useState<Category[]>([]);
+  const [zones, setZones] = React.useState<Zone[]>([]);
   const [state, setState] = React.useState<{ loading: boolean; error: string | null; items: Product[] }>({
     loading: true, error: null, items: [],
   });
@@ -73,11 +80,17 @@ export function ProductsPage(): React.JSX.Element {
     if (data) setCategories(data);
   }, []);
 
+  const loadZones = React.useCallback(async () => {
+    const { data } = await zonesApi.list();
+    if (data) setZones(data);
+  }, []);
+
   const load = React.useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     const { data, error } = await productsApi.list({
       search: search || undefined,
       categoryId: categoryFilter || undefined,
+      zoneId: zoneFilter || undefined,
       baseUnit: unitFilter || undefined,
       isActive: activeFilter === 'all' ? undefined : activeFilter === 'active',
       isInventoryTracked: trackedFilter === 'all' ? undefined : trackedFilter === 'yes',
@@ -85,9 +98,10 @@ export function ProductsPage(): React.JSX.Element {
     });
     if (error) setState({ loading: false, error: error.message, items: [] });
     else setState({ loading: false, error: null, items: data ?? [] });
-  }, [search, categoryFilter, unitFilter, activeFilter, trackedFilter, purchFilter]);
+  }, [search, categoryFilter, zoneFilter, unitFilter, activeFilter, trackedFilter, purchFilter]);
 
   React.useEffect(() => { void loadCategories(); }, [loadCategories]);
+  React.useEffect(() => { void loadZones(); }, [loadZones]);
   React.useEffect(() => { void load(); }, [load]);
 
   const openCreate = (): void =>
@@ -169,6 +183,20 @@ export function ProductsPage(): React.JSX.Element {
               ))}
             </Select>
           </FormControl>
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>Зона</InputLabel>
+            <Select
+              label="Зона"
+              value={zoneFilter}
+              onChange={(e) => setZoneFilter(e.target.value)}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+            >
+              <MenuItem value="">Все зоны</MenuItem>
+              {zones.filter((z) => z.isActive).map((z) => (
+                <MenuItem key={z.id} value={z.id}>{z.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel>Единица</InputLabel>
             <Select
@@ -244,42 +272,77 @@ export function ProductsPage(): React.JSX.Element {
                   <TableRow>
                     <TableCell>Название</TableCell>
                     <TableCell>Категория</TableCell>
+                    <TableCell>Зоны</TableCell>
+                    <TableCell align="right">Остаток</TableCell>
                     <TableCell>Единица</TableCell>
-                    <TableCell>Артикул</TableCell>
-                    <TableCell>Штрихкод</TableCell>
-                    <TableCell>Использование</TableCell>
-                    <TableCell>Статус</TableCell>
                     {canEdit ? <TableCell align="right">Действия</TableCell> : null}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {state.items.map((p) => (
-                    <TableRow key={p.id}>
+                    <TableRow
+                      key={p.id}
+                      sx={{
+                        bgcolor: p.isActive ? 'inherit' : 'action.hover',
+                        opacity: p.isActive ? 1 : 0.72,
+                      }}
+                    >
                       <TableCell>{p.name}</TableCell>
-                      <TableCell>{p.category ? `${p.category.name}${p.category.isActive ? '' : ' (неактивна)'}` : '—'}</TableCell>
+                      <TableCell>
+                        {p.category ? (
+                          <Box
+                            component="button"
+                            type="button"
+                            onClick={() => setCategoryFilter(p.category!.id)}
+                            sx={{
+                              background: 'transparent',
+                              border: 'none',
+                              p: 0,
+                              cursor: 'pointer',
+                              color: categoryFilter === p.category.id ? 'primary.main' : 'inherit',
+                              textDecoration: 'none',
+                              fontSize: 'inherit',
+                              fontFamily: 'inherit',
+                              textAlign: 'left',
+                              '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+                            }}
+                          >
+                            {p.category.name}{p.category.isActive ? '' : ' (неактивна)'}
+                          </Box>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {(p.zones ?? []).length === 0 ? (
+                          <Typography component="span" color="text.secondary">—</Typography>
+                        ) : (
+                          <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                            {(p.zones ?? []).map((z) => (
+                              <Chip
+                                key={z.id}
+                                size="small"
+                                label={z.name}
+                                variant={zoneFilter === z.id ? 'filled' : 'outlined'}
+                                color={zoneFilter === z.id ? 'primary' : 'default'}
+                                onClick={() => setZoneFilter(z.id)}
+                                sx={{ height: 22 }}
+                              />
+                            ))}
+                          </Stack>
+                        )}
+                      </TableCell>
+                      <TableCell align="right">
+                        <ProductStockCell qty={p.lastQuantity} at={p.lastInventoryAt} stock={p.lastStock} />
+                      </TableCell>
                       <TableCell>{unitLabels[p.baseUnit]}</TableCell>
-                      <TableCell>{p.sku ?? '—'}</TableCell>
-                      <TableCell>{p.barcode ?? '—'}</TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
-                          <Tooltip title={p.isInventoryTracked ? 'Учитывается в инвентаризации' : 'Не учитывается'}>
-                            <Chip size="small" label="Инв." color={p.isInventoryTracked ? 'primary' : 'default'} variant={p.isInventoryTracked ? 'filled' : 'outlined'} />
-                          </Tooltip>
-                          <Tooltip title={p.isPurchasable ? 'Используется в закупках' : 'Не закупается'}>
-                            <Chip size="small" label="Закуп." color={p.isPurchasable ? 'primary' : 'default'} variant={p.isPurchasable ? 'filled' : 'outlined'} />
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Chip size="small" label={p.isActive ? 'Активен' : 'Неактивен'} color={p.isActive ? 'success' : 'default'} />
-                      </TableCell>
                       {canEdit ? (
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} justifyContent="flex-end">
                             <Tooltip title="Редактировать"><IconButton size="small" onClick={() => openEdit(p)}><PencilSimpleIcon /></IconButton></Tooltip>
-                            <Button size="small" onClick={() => toggleActive(p)}>
-                              {p.isActive ? 'Деактивировать' : 'Активировать'}
-                            </Button>
+                            <Tooltip title={p.isActive ? 'Деактивировать' : 'Активировать'}>
+                              <IconButton size="small" color={p.isActive ? 'success' : 'error'} onClick={() => toggleActive(p)}>
+                                {p.isActive ? <CheckCircleIcon /> : <ProhibitIcon />}
+                              </IconButton>
+                            </Tooltip>
                           </Stack>
                         </TableCell>
                       ) : null}
@@ -297,6 +360,7 @@ export function ProductsPage(): React.JSX.Element {
         mode={dialog.mode}
         product={dialog.product}
         categories={categories}
+        zones={zones}
         saving={dialog.saving}
         serverError={dialog.error}
         onCancel={closeDialog}
@@ -306,5 +370,49 @@ export function ProductsPage(): React.JSX.Element {
       {snack}
       {confirmView}
     </>
+  );
+}
+
+function formatQty(v: string): string {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return v;
+  if (Number.isInteger(n)) return String(n);
+  return n.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  return `${date} ${time}`;
+}
+
+function ProductStockCell({
+  qty, at, stock,
+}: {
+  qty: string | null;
+  at: string | null;
+  stock: import('@/types/product').ProductStockZoneEntry[];
+}): React.JSX.Element {
+  if (qty === null || at === null) {
+    return <Typography component="span" color="text.secondary">—</Typography>;
+  }
+  const tooltipContent = (
+    <Box>
+      <Box sx={{ fontWeight: 600, mb: stock.length > 0 ? 0.5 : 0 }}>{formatDateTime(at)}</Box>
+      {stock.map((s) => (
+        <Box key={s.zoneId}>
+          {s.zoneName}: {formatQty(s.quantity)}
+        </Box>
+      ))}
+    </Box>
+  );
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
+      <Typography component="span">{formatQty(qty)}</Typography>
+      <Tooltip title={tooltipContent} enterTouchDelay={0} arrow>
+        <InfoIcon size={14} color="var(--mui-palette-text-secondary, #8B909B)" style={{ cursor: 'help' }} />
+      </Tooltip>
+    </Stack>
   );
 }

@@ -25,6 +25,11 @@ export class ProductQueryDto {
   @IsString()
   categoryId?: string;
 
+  // UUID of a zone — filters products assigned to it via ProductZone.
+  @IsOptional()
+  @IsString()
+  zoneId?: string;
+
   @IsOptional()
   @IsEnum(Unit)
   baseUnit?: Unit;

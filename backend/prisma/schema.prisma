@@ -26,6 +26,12 @@ enum Unit {
   BAG
 }
 
+enum InventorySessionStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
 model Organization {
   id          String   @id @default(uuid())
   name        String
@@ -37,9 +43,11 @@ model Organization {
   users     User[]
   positions Position[]
   zones     Zone[]
-  suppliers  Supplier[]
-  categories Category[]
-  products   Product[]
+  suppliers          Supplier[]
+  categories         Category[]
+  products           Product[]
+  inventorySessions  InventorySession[]
+  productZones       ProductZone[]
 
   @@map("organizations")
 }
@@ -82,8 +90,10 @@ model Product {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  category     Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category       Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  inventoryItems InventoryItem[]
+  zones          ProductZone[]
 
   @@unique([organizationId, normalizedName])
   @@unique([organizationId, normalizedSku])
@@ -95,6 +105,63 @@ model Product {
   @@index([organizationId, isPurchasable])
   @@index([organizationId, baseUnit])
   @@map("products")
+}
+
+model InventorySession {
+  id             String                 @id @default(cuid())
+  organizationId String
+  sequenceNumber Int
+  zoneId         String
+  createdById    String
+  status         InventorySessionStatus @default(COMPLETED)
+  startedAt      DateTime               @default(now())
+  completedAt    DateTime?
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  zone         Zone            @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  createdBy    User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items        InventoryItem[]
+
+  @@unique([organizationId, sequenceNumber])
+  @@index([organizationId])
+  @@index([organizationId, zoneId])
+  @@index([organizationId, zoneId, completedAt])
+  @@index([createdById])
+  @@map("inventory_sessions")
+}
+
+model InventoryItem {
+  id                 String    @id @default(cuid())
+  inventorySessionId String
+  productId          String
+  quantity           Decimal   @db.Decimal(12, 3)
+  updatedAt          DateTime  @default(now()) @updatedAt
+  updatedById        String?
+
+  session   InventorySession @relation(fields: [inventorySessionId], references: [id], onDelete: Cascade)
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  updatedBy User?            @relation("InventoryItemUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([inventorySessionId, productId])
+  @@index([productId])
+  @@map("inventory_items")
+}
+
+model ProductZone {
+  id             String   @id @default(uuid())
+  organizationId String
+  productId      String
+  zoneId         String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  zone         Zone         @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, zoneId])
+  @@index([organizationId, zoneId])
+  @@index([organizationId, productId])
+  @@map("product_zones")
 }
 
 model Supplier {
@@ -133,9 +200,11 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
-  position     Position?    @relation(fields: [positionId], references: [id], onDelete: SetNull)
-  zones        UserZone[]
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  position             Position?          @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  zones                UserZone[]
+  inventorySessions    InventorySession[]
+  editedInventoryItems InventoryItem[]    @relation("InventoryItemUpdatedBy")
 
   @@index([organizationId])
   @@index([positionId])
@@ -170,8 +239,10 @@ model Zone {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  users        UserZone[]
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users             UserZone[]
+  inventorySessions InventorySession[]
+  products          ProductZone[]
 
   @@unique([organizationId, normalizedName])
   @@index([organizationId])

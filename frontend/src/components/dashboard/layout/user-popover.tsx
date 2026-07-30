@@ -1,4 +1,5 @@
 import * as React from 'react';
+import RouterLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Divider from '@mui/material/Divider';
@@ -8,6 +9,7 @@ import MenuList from '@mui/material/MenuList';
 import Popover from '@mui/material/Popover';
 import Typography from '@mui/material/Typography';
 import { SignOutIcon } from '@phosphor-icons/react/dist/ssr/SignOut';
+import { UserIcon } from '@phosphor-icons/react/dist/ssr/User';
 
 import { paths } from '@/paths';
 import { authClient } from '@/lib/auth/client';
@@ -57,6 +59,12 @@ export function UserPopover({ anchorEl, onClose, open }: UserPopoverProps): Reac
       </Box>
       <Divider />
       <MenuList disablePadding sx={{ p: '8px', '& .MuiMenuItem-root': { borderRadius: 1 } }}>
+        <MenuItem component={RouterLink} href={paths.dashboard.overview} onClick={onClose}>
+          <ListItemIcon>
+            <UserIcon fontSize="var(--icon-fontSize-md)" />
+          </ListItemIcon>
+          Мой профиль
+        </MenuItem>
         <MenuItem onClick={handleSignOut}>
           <ListItemIcon>
             <SignOutIcon fontSize="var(--icon-fontSize-md)" />

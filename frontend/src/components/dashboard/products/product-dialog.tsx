@@ -3,7 +3,9 @@
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Alert from '@mui/material/Alert';
+import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -24,6 +26,7 @@ import { z as zod } from 'zod';
 import type { Category } from '@/types/category';
 import type { CreateProductInput, Product, UpdateProductInput } from '@/types/product';
 import type { Unit } from '@/types/unit';
+import type { Zone } from '@/types/zone';
 import { unitLabels } from '@/types/unit';
 
 const UNIT_VALUES: [Unit, ...Unit[]] = ['PIECE', 'GRAM', 'KILOGRAM', 'MILLILITER', 'LITER', 'PACK', 'BOX', 'BOTTLE', 'CAN', 'BAG'];
@@ -37,13 +40,14 @@ const schema = zod.object({
   barcode: zod.string().trim().max(128).optional().or(zod.literal('')),
   isInventoryTracked: zod.boolean(),
   isPurchasable: zod.boolean(),
+  zoneIds: zod.array(zod.string()),
 });
 
 type Values = zod.infer<typeof schema>;
 
 const empty: Values = {
   name: '', description: '', categoryId: '', baseUnit: 'PIECE',
-  sku: '', barcode: '', isInventoryTracked: true, isPurchasable: true,
+  sku: '', barcode: '', isInventoryTracked: true, isPurchasable: true, zoneIds: [],
 };
 
 const toNull = (s?: string): string | null => (s && s.trim().length > 0 ? s.trim() : null);
@@ -53,6 +57,7 @@ export interface ProductDialogProps {
   mode: 'create' | 'edit';
   product?: Product | null;
   categories: Category[];
+  zones: Zone[];
   saving: boolean;
   serverError: string | null;
   onCancel: () => void;
@@ -60,7 +65,7 @@ export interface ProductDialogProps {
 }
 
 export function ProductDialog({
-  open, mode, product, categories, saving, serverError, onCancel, onSubmit,
+  open, mode, product, categories, zones, saving, serverError, onCancel, onSubmit,
 }: ProductDialogProps): React.JSX.Element {
   const { control, handleSubmit, reset, formState: { errors } } = useForm<Values>({
     resolver: zodResolver(schema),
@@ -79,6 +84,7 @@ export function ProductDialog({
         barcode: product.barcode ?? '',
         isInventoryTracked: product.isInventoryTracked,
         isPurchasable: product.isPurchasable,
+        zoneIds: (product.zones ?? []).map((z) => z.id),
       });
     } else {
       reset(empty);
@@ -95,9 +101,19 @@ export function ProductDialog({
       barcode: toNull(v.barcode),
       isInventoryTracked: v.isInventoryTracked,
       isPurchasable: v.isPurchasable,
+      zoneIds: v.zoneIds,
     };
     void onSubmit(payload);
   };
+
+  const activeZones = zones.filter((z) => z.isActive);
+  const inactiveCurrentZones = mode === 'edit'
+    ? (product?.zones ?? []).filter((pz) => !activeZones.some((z) => z.id === pz.id))
+    : [];
+  const zoneOptions: Array<{ id: string; name: string; isActive: boolean }> = [
+    ...activeZones.map((z) => ({ id: z.id, name: z.name, isActive: true })),
+    ...inactiveCurrentZones.map((z) => ({ id: z.id, name: z.name, isActive: false })),
+  ];
 
   const currentCategoryId = product?.category?.id ?? '';
   const activeCategories = categories.filter((c) => c.isActive);
@@ -167,6 +183,40 @@ export function ProductDialog({
               error={Boolean(errors.barcode)} helperText={errors.barcode?.message}
               inputProps={{ maxLength: 128 }} />
           )} />
+
+          <Divider />
+          <Typography variant="overline" color="text.secondary">Зоны</Typography>
+          <Controller name="zoneIds" control={control} render={({ field }) => {
+            const selected = zoneOptions.filter((o) => field.value.includes(o.id));
+            return (
+              <Autocomplete
+                multiple
+                disableCloseOnSelect
+                options={zoneOptions}
+                value={selected}
+                onChange={(_, val) => field.onChange(val.map((v) => v.id))}
+                getOptionLabel={(o) => o.isActive ? o.name : `${o.name} (неактивна)`}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return (
+                      <Chip
+                        key={key}
+                        size="small"
+                        variant={option.isActive ? 'filled' : 'outlined'}
+                        label={option.isActive ? option.name : `${option.name} (неактивна)`}
+                        {...tagProps}
+                      />
+                    );
+                  })
+                }
+                renderInput={(params) => (
+                  <TextField {...params} label="В каких зонах используется" placeholder="Выберите зоны" />
+                )}
+              />
+            );
+          }} />
 
           <Divider />
           <Typography variant="overline" color="text.secondary">Использование</Typography>

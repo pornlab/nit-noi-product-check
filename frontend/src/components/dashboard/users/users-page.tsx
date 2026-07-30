@@ -26,9 +26,11 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { KeyIcon } from '@phosphor-icons/react/dist/ssr/Key';
 import { MapPinIcon } from '@phosphor-icons/react/dist/ssr/MapPin';
 import { PencilSimpleIcon } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { ProhibitIcon } from '@phosphor-icons/react/dist/ssr/Prohibit';
 
 import type { Position } from '@/types/position';
 import type { User, UserRole } from '@/types/user';
@@ -268,14 +270,23 @@ export function UsersPage(): React.JSX.Element {
                       <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
                         {(u.zones ?? []).length === 0 ? '—' :
                           (u.zones ?? []).map((z) => (
-                            <Chip key={z.id} size="small" label={z.name}
-                              variant={z.isResponsible ? 'filled' : 'outlined'}
-                              color={z.isResponsible ? 'success' : 'default'} />
+                            <Tooltip key={z.id} title={z.isResponsible ? 'Ответственный' : ''}>
+                              <Chip
+                                size="small"
+                                label={z.isResponsible ? `★ ${z.name}` : z.name}
+                                variant="outlined"
+                              />
+                            </Tooltip>
                           ))}
                       </Stack>
                     </TableCell>
                     <TableCell>
-                      <Chip size="small" label={u.isActive ? 'Активен' : 'Неактивен'} color={u.isActive ? 'success' : 'default'} />
+                      <Chip
+                        size="small"
+                        label={u.isActive ? 'Активен' : 'Неактивен'}
+                        variant="outlined"
+                        color={u.isActive ? 'success' : 'default'}
+                      />
                     </TableCell>
                     {canEdit ? (
                       <TableCell align="right">
@@ -283,7 +294,11 @@ export function UsersPage(): React.JSX.Element {
                           <Tooltip title="Редактировать"><IconButton size="small" onClick={() => openEdit(u)}><PencilSimpleIcon /></IconButton></Tooltip>
                           <Tooltip title="Пароль"><IconButton size="small" onClick={() => openPassword(u)}><KeyIcon /></IconButton></Tooltip>
                           <Tooltip title="Зоны"><IconButton size="small" onClick={() => openZoneDlg(u)}><MapPinIcon /></IconButton></Tooltip>
-                          <Button size="small" onClick={() => toggleActive(u)}>{u.isActive ? 'Деактивировать' : 'Активировать'}</Button>
+                          <Tooltip title={u.isActive ? 'Деактивировать' : 'Активировать'}>
+                            <IconButton size="small" color={u.isActive ? 'success' : 'error'} onClick={() => toggleActive(u)}>
+                              {u.isActive ? <CheckCircleIcon /> : <ProhibitIcon />}
+                            </IconButton>
+                          </Tooltip>
                         </Stack>
                       </TableCell>
                     ) : null}

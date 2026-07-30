@@ -6,7 +6,7 @@
   "scripts": {
     "build": "nest build",
     "start": "nest start",
-    "start:dev": "nest start --watch",
+    "start:backend:dev": "nest start --watch",
     "start:prod": "node dist/src/main.js",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",

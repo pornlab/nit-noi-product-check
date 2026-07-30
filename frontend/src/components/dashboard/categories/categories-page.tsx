@@ -5,7 +5,6 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import FormControl from '@mui/material/FormControl';
 import IconButton from '@mui/material/IconButton';
@@ -22,7 +21,9 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { PencilSimpleIcon } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { ProhibitIcon } from '@phosphor-icons/react/dist/ssr/Prohibit';
 
 import type { Category, CreateCategoryInput, UpdateCategoryInput } from '@/types/category';
 import { categoriesApi } from '@/lib/api/categories';
@@ -169,25 +170,29 @@ export function CategoriesPage(): React.JSX.Element {
                   <TableRow>
                     <TableCell>Название</TableCell>
                     <TableCell>Описание</TableCell>
-                    <TableCell>Статус</TableCell>
                     {canEdit ? <TableCell align="right">Действия</TableCell> : null}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {state.items.map((c) => (
-                    <TableRow key={c.id}>
+                    <TableRow
+                      key={c.id}
+                      sx={{
+                        bgcolor: c.isActive ? 'inherit' : 'action.hover',
+                        opacity: c.isActive ? 1 : 0.72,
+                      }}
+                    >
                       <TableCell>{c.name}</TableCell>
                       <TableCell sx={{ maxWidth: 480, whiteSpace: 'pre-wrap' }}>{c.description ?? '—'}</TableCell>
-                      <TableCell>
-                        <Chip size="small" label={c.isActive ? 'Активна' : 'Неактивна'} color={c.isActive ? 'success' : 'default'} />
-                      </TableCell>
                       {canEdit ? (
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} justifyContent="flex-end">
                             <Tooltip title="Редактировать"><IconButton size="small" onClick={() => openEdit(c)}><PencilSimpleIcon /></IconButton></Tooltip>
-                            <Button size="small" onClick={() => toggleActive(c)}>
-                              {c.isActive ? 'Деактивировать' : 'Активировать'}
-                            </Button>
+                            <Tooltip title={c.isActive ? 'Деактивировать' : 'Активировать'}>
+                              <IconButton size="small" color={c.isActive ? 'success' : 'error'} onClick={() => toggleActive(c)}>
+                                {c.isActive ? <CheckCircleIcon /> : <ProhibitIcon />}
+                              </IconButton>
+                            </Tooltip>
                           </Stack>
                         </TableCell>
                       ) : null}

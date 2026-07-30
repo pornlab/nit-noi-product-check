@@ -21,6 +21,7 @@ export const productsApi = {
         qs({
           search: filter.search,
           categoryId: filter.categoryId,
+          zoneId: filter.zoneId,
           baseUnit: filter.baseUnit,
           isInventoryTracked: filter.isInventoryTracked === undefined ? undefined : String(filter.isInventoryTracked),
           isPurchasable: filter.isPurchasable === undefined ? undefined : String(filter.isPurchasable),

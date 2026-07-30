@@ -1,4 +1,6 @@
 import {
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsNotEmpty,
@@ -66,4 +68,10 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @ArrayUnique({ message: 'Зоны не должны повторяться' })
+  zoneIds?: string[];
 }

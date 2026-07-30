@@ -22,7 +22,9 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { PencilSimpleIcon } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { ProhibitIcon } from '@phosphor-icons/react/dist/ssr/Prohibit';
 
 import type { Position } from '@/types/position';
 import { positionsApi } from '@/lib/api/positions';
@@ -37,7 +39,7 @@ export function PositionsPage(): React.JSX.Element {
   const { confirm, view: confirmView } = useConfirm();
 
   const [search, setSearch] = React.useState('');
-  const [activeOnly, setActiveOnly] = React.useState(false);
+  const [activeOnly, setActiveOnly] = React.useState(true);
   const [state, setState] = React.useState<{ loading: boolean; error: string | null; items: Position[] }>({
     loading: true, error: null, items: [],
   });
@@ -158,9 +160,11 @@ export function PositionsPage(): React.JSX.Element {
                           <Tooltip title="Редактировать">
                             <IconButton size="small" onClick={() => openEdit(p)}><PencilSimpleIcon /></IconButton>
                           </Tooltip>
-                          <Button size="small" onClick={() => toggleActive(p)}>
-                            {p.isActive ? 'Деактивировать' : 'Активировать'}
-                          </Button>
+                          <Tooltip title={p.isActive ? 'Деактивировать' : 'Активировать'}>
+                            <IconButton size="small" color={p.isActive ? 'success' : 'error'} onClick={() => toggleActive(p)}>
+                              {p.isActive ? <CheckCircleIcon /> : <ProhibitIcon />}
+                            </IconButton>
+                          </Tooltip>
                         </Stack>
                       </TableCell>
                     ) : null}

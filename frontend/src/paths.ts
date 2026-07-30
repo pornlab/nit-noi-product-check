@@ -10,6 +10,10 @@ export const paths = {
     suppliers: '/dashboard/suppliers',
     categories: '/dashboard/categories',
     products: '/dashboard/products',
+    inventory: '/dashboard/inventory',
+    inventoryZone: (id: string) => `/dashboard/inventory/${id}`,
+    inventoryZoneHistory: (id: string) => `/dashboard/inventory/${id}/history`,
+    inventorySession: (id: string) => `/dashboard/inventory/sessions/${id}`,
     myZones: '/dashboard/my-zones',
   },
 } as const;

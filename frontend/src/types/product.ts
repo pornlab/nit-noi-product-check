@@ -6,6 +6,18 @@ export interface ProductCategory {
   isActive: boolean;
 }
 
+export interface ProductZoneRef {
+  id: string;
+  name: string;
+}
+
+export interface ProductStockZoneEntry {
+  zoneId: string;
+  zoneName: string;
+  quantity: string;
+  completedAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -19,6 +31,10 @@ export interface Product {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  zones: ProductZoneRef[];
+  lastQuantity: string | null;
+  lastInventoryAt: string | null;
+  lastStock: ProductStockZoneEntry[];
 }
 
 export interface CreateProductInput {
@@ -30,6 +46,7 @@ export interface CreateProductInput {
   barcode?: string | null;
   isInventoryTracked?: boolean;
   isPurchasable?: boolean;
+  zoneIds?: string[];
 }
 
 export interface UpdateProductInput {
@@ -42,11 +59,13 @@ export interface UpdateProductInput {
   isInventoryTracked?: boolean;
   isPurchasable?: boolean;
   isActive?: boolean;
+  zoneIds?: string[];
 }
 
 export interface ProductFilters {
   search?: string;
   categoryId?: string; // UUID or 'none'
+  zoneId?: string;
   baseUnit?: Unit;
   isInventoryTracked?: boolean;
   isPurchasable?: boolean;

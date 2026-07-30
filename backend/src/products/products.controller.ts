@@ -20,6 +20,7 @@ export class ProductsController {
     return this.service.list(user.organizationId, {
       search: q.search,
       categoryId: q.categoryId,
+      zoneId: q.zoneId,
       baseUnit: q.baseUnit,
       isInventoryTracked: q.isInventoryTracked,
       isPurchasable: q.isPurchasable,

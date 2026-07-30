@@ -6,7 +6,6 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
@@ -24,7 +23,9 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import { CheckCircleIcon } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { PencilSimpleIcon } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { ProhibitIcon } from '@phosphor-icons/react/dist/ssr/Prohibit';
 import { UsersIcon } from '@phosphor-icons/react/dist/ssr/Users';
 import { TrashIcon } from '@phosphor-icons/react/dist/ssr/Trash';
 
@@ -43,7 +44,7 @@ export function ZonesPage(): React.JSX.Element {
   const { confirm, view: confirmView } = useConfirm();
 
   const [search, setSearch] = React.useState('');
-  const [activeOnly, setActiveOnly] = React.useState(false);
+  const [activeOnly, setActiveOnly] = React.useState(true);
   const [state, setState] = React.useState<{ loading: boolean; error: string | null; items: Zone[] }>({
     loading: true, error: null, items: [],
   });
@@ -207,7 +208,6 @@ export function ZonesPage(): React.JSX.Element {
                 <TableRow>
                   <TableCell>Название</TableCell>
                   <TableCell>Описание</TableCell>
-                  <TableCell>Статус</TableCell>
                   <TableCell align="right">Сотрудников</TableCell>
                   <TableCell align="right">Ответственных</TableCell>
                   {canEdit ? <TableCell align="right">Действия</TableCell> : null}
@@ -215,12 +215,15 @@ export function ZonesPage(): React.JSX.Element {
               </TableHead>
               <TableBody>
                 {state.items.map((z) => (
-                  <TableRow key={z.id}>
+                  <TableRow
+                    key={z.id}
+                    sx={{
+                      bgcolor: z.isActive ? 'inherit' : 'action.hover',
+                      opacity: z.isActive ? 1 : 0.72,
+                    }}
+                  >
                     <TableCell>{z.name}</TableCell>
                     <TableCell>{z.description ?? '—'}</TableCell>
-                    <TableCell>
-                      <Chip size="small" label={z.isActive ? 'Активна' : 'Неактивна'} color={z.isActive ? 'success' : 'default'} />
-                    </TableCell>
                     <TableCell align="right">{z.usersCount}</TableCell>
                     <TableCell align="right">{z.responsibleCount}</TableCell>
                     {canEdit ? (
@@ -232,9 +235,11 @@ export function ZonesPage(): React.JSX.Element {
                           <Tooltip title="Редактировать">
                             <IconButton size="small" onClick={() => openEdit(z)}><PencilSimpleIcon /></IconButton>
                           </Tooltip>
-                          <Button size="small" onClick={() => toggleActive(z)}>
-                            {z.isActive ? 'Деактивировать' : 'Активировать'}
-                          </Button>
+                          <Tooltip title={z.isActive ? 'Деактивировать' : 'Активировать'}>
+                            <IconButton size="small" color={z.isActive ? 'success' : 'error'} onClick={() => toggleActive(z)}>
+                              {z.isActive ? <CheckCircleIcon /> : <ProhibitIcon />}
+                            </IconButton>
+                          </Tooltip>
                         </Stack>
                       </TableCell>
                     ) : null}

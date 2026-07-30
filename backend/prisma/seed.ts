@@ -198,6 +198,35 @@ async function main(): Promise<void> {
     console.log(`  Supplier: ${s.name}`);
   }
 
+  // ProductZone: явно назначаем товары зонам (пилот)
+  const productZoneSeed: Record<string, string[]> = {
+    'Кондитерская': ['Мука пшеничная', 'Сахар', 'Молоко цельное', 'Сливки', 'Яйцо куриное', 'Коробка для торта'],
+    'Кухня':        ['Мука пшеничная', 'Сахар', 'Молоко цельное', 'Сливки', 'Яйцо куриное', 'Авокадо'],
+    'Бар':          ['Молоко цельное', 'Сливки'],
+    'Основной склад': ['Средство для мытья посуды', 'Коробка для торта'],
+  };
+  const productByName = new Map<string, string>();
+  for (const p of await prisma.product.findMany({
+    where: { organizationId: organization.id },
+    select: { id: true, name: true },
+  })) productByName.set(p.name, p.id);
+
+  for (const [zoneName, prodNames] of Object.entries(productZoneSeed)) {
+    const zoneId = zoneByName.get(zoneName);
+    if (!zoneId) continue;
+    for (const prodName of prodNames) {
+      const productId = productByName.get(prodName);
+      if (!productId) continue;
+      await prisma.productZone.upsert({
+        where: { productId_zoneId: { productId, zoneId } },
+        update: {},
+        create: { organizationId: organization.id, productId, zoneId },
+      });
+    }
+    // eslint-disable-next-line no-console
+    console.log(`  ProductZone: ${zoneName} ← ${prodNames.length} товаров`);
+  }
+
   for (const seed of usersSeed) {
     const positionId = positionByName.get(seed.positionName) ?? null;
 
