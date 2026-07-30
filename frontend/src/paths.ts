@@ -15,5 +15,9 @@ export const paths = {
     inventoryZoneHistory: (id: string) => `/dashboard/inventory/${id}/history`,
     inventorySession: (id: string) => `/dashboard/inventory/sessions/${id}`,
     myZones: '/dashboard/my-zones',
+    receivings: '/dashboard/receivings',
+    receivingsNew: '/dashboard/receivings/new',
+    receiving: (id: string) => `/dashboard/receivings/${id}`,
+    receivingEdit: (id: string) => `/dashboard/receivings/${id}/edit`,
   },
 } as const;

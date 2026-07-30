@@ -11,6 +11,7 @@ export function getNavItems(role: UserRole | undefined): NavItemConfig[] {
   }
   return [
     { key: 'inventory', title: 'Инвентаризация', href: paths.dashboard.inventory, icon: 'clipboard' },
+    { key: 'receivings', title: 'Поступления', href: paths.dashboard.receivings, icon: 'tray-arrow-down' },
     { key: 'products', title: 'Товары', href: paths.dashboard.products, icon: 'package' },
     {
       key: 'organization',
