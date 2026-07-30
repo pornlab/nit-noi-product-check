@@ -1,3 +1,5 @@
+'use client';
+
 import * as React from 'react';
 import RouterLink from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -15,6 +17,7 @@ import { paths } from '@/paths';
 import { authClient } from '@/lib/auth/client';
 import { logger } from '@/lib/default-logger';
 import { useUser } from '@/hooks/use-user';
+import { useI18n } from '@/lib/i18n/provider';
 
 export interface UserPopoverProps {
   anchorEl: Element | null;
@@ -24,6 +27,7 @@ export interface UserPopoverProps {
 
 export function UserPopover({ anchorEl, onClose, open }: UserPopoverProps): React.JSX.Element {
   const { user, checkSession } = useUser();
+  const { t } = useI18n();
 
   const router = useRouter();
 
@@ -63,13 +67,13 @@ export function UserPopover({ anchorEl, onClose, open }: UserPopoverProps): Reac
           <ListItemIcon>
             <UserIcon fontSize="var(--icon-fontSize-md)" />
           </ListItemIcon>
-          Мой профиль
+          {t('userMenu.myProfile')}
         </MenuItem>
         <MenuItem onClick={handleSignOut}>
           <ListItemIcon>
             <SignOutIcon fontSize="var(--icon-fontSize-md)" />
           </ListItemIcon>
-          Выйти
+          {t('userMenu.signOut')}
         </MenuItem>
       </MenuList>
     </Popover>

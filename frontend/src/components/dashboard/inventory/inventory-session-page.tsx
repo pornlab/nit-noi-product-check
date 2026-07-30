@@ -25,6 +25,7 @@ import { CheckIcon } from '@phosphor-icons/react/dist/ssr/Check';
 import type { ZoneInventoryProduct, ZoneInventoryResponse } from '@/types/inventory';
 import { inventoryApi } from '@/lib/api/inventory';
 import { useNotify } from '@/lib/api/notify';
+import { useI18n } from '@/lib/i18n/provider';
 import { unitLabels } from '@/types/unit';
 import { paths } from '@/paths';
 import { useUser } from '@/hooks/use-user';
@@ -86,6 +87,7 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
   const router = useRouter();
   const { notify, view: snack } = useNotify();
   const { user } = useUser();
+  const { t } = useI18n();
 
   const [state, setState] = React.useState<{ loading: boolean; error: string | null; data: ZoneInventoryResponse | null }>({
     loading: true, error: null, data: null,
@@ -146,13 +148,13 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
     const g = new Map<string, Group>();
     for (const p of state.data?.products ?? []) {
       const key = p.category?.id ?? 'no-category';
-      const name = p.category?.name ?? 'Без категории';
+      const name = p.category?.name ?? t('receivings.withoutCategory');
       const bucket = g.get(key) ?? { key, name, items: [] };
       bucket.items.push(p);
       g.set(key, bucket);
     }
     return [...g.values()];
-  }, [state.data]);
+  }, [state.data, t]);
 
   const totalProducts = state.data?.products.length ?? 0;
   const totalFilled = React.useMemo(
@@ -217,7 +219,7 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
     if (globalThis.window === undefined) return;
     globalThis.localStorage.setItem(draftKey, serialize(inputs));
     setSavedSnapshot(serialize(inputs));
-    notify('Черновик сохранён');
+    notify(t('inventory.draftSavedDraft'));
   };
 
   const performComplete = async (): Promise<void> => {
@@ -226,12 +228,12 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
     for (const p of state.data.products) {
       const raw = inputs[p.id] ?? '';
       if (!isFilled(raw)) {
-        notify('Заполните все позиции', 'error');
+        notify(t('inventory.errorFillAll'), 'error');
         return;
       }
       const n = Number(raw);
       if (!Number.isFinite(n) || n < 0) {
-        notify('Проверьте введённые значения', 'error');
+        notify(t('inventory.errorCheckValues'), 'error');
         return;
       }
       items.push({ productId: p.id, quantity: n });
@@ -244,7 +246,7 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
     if (globalThis.window !== undefined) {
       globalThis.localStorage.removeItem(draftKey);
     }
-    notify(`Инвентаризация зоны «${state.data.zone.name}» завершена`);
+    notify(t('inventory.completedForZoneNotify', { zone: state.data.zone.name }));
     await load();
   };
 
@@ -258,31 +260,31 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
   if (state.loading) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 3 }}>
-        <CircularProgress size={20} /><Typography variant="body2">Загрузка…</Typography>
+        <CircularProgress size={20} /><Typography variant="body2">{t('common.loading')}</Typography>
       </Box>
     );
   }
   if (state.error) {
     return (
       <Stack spacing={2} sx={{ p: 3, maxWidth: 720, mx: 'auto' }}>
-        <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">Повторить</Button>}>
+        <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">{t('common.retry')}</Button>}>
           {state.error}
         </Alert>
-        <Button component={RouterLink} href={paths.dashboard.inventory}>К списку зон</Button>
+        <Button component={RouterLink} href={paths.dashboard.inventory}>{t('common.backToList')}</Button>
       </Stack>
     );
   }
-  if (!state.data) return <Typography variant="body2">Нет данных</Typography>;
+  if (!state.data) return <Typography variant="body2">—</Typography>;
 
   // Кнопка визуализация
   const buttonBg = buttonState === 'saved' ? C_SUCCESS
                  : buttonState === 'complete' ? C_ACCENT
                  : buttonState === 'draft' ? C_ACCENT
                  : C_DIVIDER;
-  const buttonLabel = buttonState === 'saved' ? 'Сохранено'
-                     : buttonState === 'complete' ? 'Завершить инвентаризацию'
-                     : buttonState === 'draft' ? 'Сохранить черновик'
-                     : 'Нет позиций';
+  const buttonLabel = buttonState === 'saved' ? t('inventory.draftSaved')
+                     : buttonState === 'complete' ? t('inventory.draftComplete')
+                     : buttonState === 'draft' ? t('inventory.draftSaveDraft')
+                     : t('inventory.noPositions');
 
   return (
     <>
@@ -338,7 +340,7 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
                   color: C_MUTED,
                   fontWeight: 600,
                 }}>
-                  Инвентаризация
+                  {t('inventory.pageTitle')}
                 </Typography>
               )}
               <Typography sx={{
@@ -397,7 +399,7 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
         {/* Read-only баннер: employee + инвентаризация сегодня */}
         {readOnly && state.data.lastCompletedAt ? (
           <Alert severity="success" sx={{ mt: 2 }}>
-            Инвентаризация зоны завершена сегодня в {formatToday(state.data.lastCompletedAt)}
+            {t('inventory.completedTodayAt', { time: formatToday(state.data.lastCompletedAt) })}
             {state.data.lastCompletedBy ? ` (${state.data.lastCompletedBy.name})` : ''}. Просмотр без возможности изменений.
           </Alert>
         ) : null}
@@ -419,7 +421,7 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
         {/* Список */}
         <Box sx={{ flex: 1, pt: 2 }}>
           {totalProducts === 0 ? (
-            <Alert severity="info" sx={{ mt: 2 }}>В этой зоне пока нет товаров для инвентаризации.</Alert>
+            <Alert severity="info" sx={{ mt: 2 }}>{t('inventory.noItemsForZone')}</Alert>
           ) : (
             grouped.map((g) => {
               const filled = g.items.filter((it) => isFilled(inputs[it.id])).length;
@@ -602,7 +604,7 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
             <Stack direction="row" alignItems="center" spacing={1.5} sx={{ width: '100%' }}>
               {buttonState === 'saved' ? <CheckIcon /> : null}
               <Box sx={{ flex: 1, textAlign: buttonState === 'saved' ? 'left' : 'center' }}>
-                {saving ? 'Сохранение…' : buttonLabel}
+                {saving ? t('common.saving') : buttonLabel}
               </Box>
               <Box sx={{
                 px: 1.25, py: 0.25,
@@ -621,21 +623,21 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
       </Box>
 
       <Dialog open={confirmOpen} onClose={() => (saving ? null : setConfirmOpen(false))} maxWidth="xs" fullWidth>
-        <DialogTitle>Завершить инвентаризацию</DialogTitle>
+        <DialogTitle>{t('inventory.confirmCompleteTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Завершить инвентаризацию зоны «{state.data.zone.name}»? После сохранения изменить значения будет нельзя.
+            {t('inventory.confirmCompleteBody', { zone: state.data.zone.name })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)} disabled={saving}>Отмена</Button>
+          <Button onClick={() => setConfirmOpen(false)} disabled={saving}>{t('common.cancel')}</Button>
           <Button
             variant="contained"
             onClick={async () => { setConfirmOpen(false); await performComplete(); }}
             disabled={saving}
             sx={{ bgcolor: C_ACCENT, '&:hover': { bgcolor: C_ACCENT, opacity: 0.92 } }}
           >
-            {saving ? 'Сохранение…' : 'Завершить'}
+            {saving ? t('common.saving') : t('inventory.confirmCompleteBtn')}
           </Button>
         </DialogActions>
       </Dialog>

@@ -32,13 +32,14 @@ import type { Category } from '@/types/category';
 import type { CreateProductInput, Product, UpdateProductInput } from '@/types/product';
 import type { Unit } from '@/types/unit';
 import type { Zone } from '@/types/zone';
-import { unitLabels } from '@/types/unit';
 import { categoriesApi } from '@/lib/api/categories';
 import { productsApi } from '@/lib/api/products';
 import { zonesApi } from '@/lib/api/zones';
 import { useNotify } from '@/lib/api/notify';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { useUser } from '@/hooks/use-user';
+import { useI18n } from '@/lib/i18n/provider';
+import { unitLabelKey } from '@/lib/i18n/unit';
 import { ProductDialog } from './product-dialog';
 
 type ActiveFilter = 'all' | 'active' | 'inactive';
@@ -47,6 +48,7 @@ const UNIT_VALUES: Unit[] = ['PIECE', 'GRAM', 'KILOGRAM', 'MILLILITER', 'LITER',
 
 export function ProductsPage(): React.JSX.Element {
   const { user } = useUser();
+  const { t } = useI18n();
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const { notify, view: snack } = useNotify();
   const { confirm, view: confirmView } = useConfirm();
@@ -120,7 +122,7 @@ export function ProductsPage(): React.JSX.Element {
       : await productsApi.update(dialog.product!.id, payload as UpdateProductInput);
     setDialog((d) => ({ ...d, saving: false, error: error ? error.message : null }));
     if (error) { notify(error.message, 'error'); return; }
-    notify('Товар сохранён');
+    notify(t('products.savedNotify'));
     setDialog((d) => ({ ...d, open: false }));
     await load();
   };
@@ -128,24 +130,24 @@ export function ProductsPage(): React.JSX.Element {
   const toggleActive = (p: Product): void => {
     if (p.isActive) {
       confirm({
-        title: 'Деактивировать товар',
-        message: `Деактивировать товар «${p.name}»? Товар останется в системе и будет доступен в истории операций.`,
+        title: t('products.confirmDeactivateTitle'),
+        message: t('products.confirmDeactivateBody', { name: p.name }),
         danger: true,
         onConfirm: async () => {
           const { error } = await productsApi.update(p.id, { isActive: false });
           if (error) { notify(error.message, 'error'); return; }
-          notify('Товар деактивирован');
+          notify(t('products.deactivatedNotify'));
           await load();
         },
       });
     } else {
       confirm({
-        title: 'Активировать товар',
-        message: `Активировать товар «${p.name}»?`,
+        title: t('products.confirmActivateTitle'),
+        message: t('products.confirmActivateBody', { name: p.name }),
         onConfirm: async () => {
           const { error } = await productsApi.update(p.id, { isActive: true });
           if (error) { notify(error.message, 'error'); return; }
-          notify('Товар активирован');
+          notify(t('products.activatedNotify'));
           await load();
         },
       });
@@ -156,97 +158,97 @@ export function ProductsPage(): React.JSX.Element {
     <>
       <Stack spacing={2}>
         <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-          <Typography variant="h5">Товары</Typography>
+          <Typography variant="h5">{t('products.pageTitle')}</Typography>
           <Box sx={{ flex: 1 }} />
-          {canEdit ? <Button variant="contained" onClick={openCreate}>Добавить товар</Button> : null}
+          {canEdit ? <Button variant="contained" onClick={openCreate}>{t('products.addProduct')}</Button> : null}
         </Stack>
 
         <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
           <TextField
             size="small"
-            placeholder="Поиск (название, описание, SKU, штрихкод)"
+            placeholder={t('products.searchPlaceholder')}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             sx={{ minWidth: 320 }}
           />
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Категория</InputLabel>
+            <InputLabel>{t('products.filterCategoryLabel')}</InputLabel>
             <Select
-              label="Категория"
+              label={t('products.filterCategoryLabel')}
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
               MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
             >
-              <MenuItem value="">Все категории</MenuItem>
-              <MenuItem value="none">Без категории</MenuItem>
+              <MenuItem value="">{t('products.filterCategoryAll')}</MenuItem>
+              <MenuItem value="none">{t('products.filterCategoryNone')}</MenuItem>
               {categories.filter((c) => c.isActive).map((c) => (
                 <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
               ))}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Зона</InputLabel>
+            <InputLabel>{t('products.filterZoneLabel')}</InputLabel>
             <Select
-              label="Зона"
+              label={t('products.filterZoneLabel')}
               value={zoneFilter}
               onChange={(e) => setZoneFilter(e.target.value)}
               MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
             >
-              <MenuItem value="">Все зоны</MenuItem>
+              <MenuItem value="">{t('products.filterZoneAll')}</MenuItem>
               {zones.filter((z) => z.isActive).map((z) => (
                 <MenuItem key={z.id} value={z.id}>{z.name}</MenuItem>
               ))}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel>Единица</InputLabel>
+            <InputLabel>{t('products.filterUnitLabel')}</InputLabel>
             <Select
-              label="Единица"
+              label={t('products.filterUnitLabel')}
               value={unitFilter}
               onChange={(e) => setUnitFilter(e.target.value as Unit | '')}
               MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
             >
-              <MenuItem value="">Любая</MenuItem>
-              {UNIT_VALUES.map((u) => <MenuItem key={u} value={u}>{unitLabels[u]}</MenuItem>)}
+              <MenuItem value="">{t('products.filterUnitAny')}</MenuItem>
+              {UNIT_VALUES.map((u) => <MenuItem key={u} value={u}>{t(unitLabelKey(u))}</MenuItem>)}
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 160 }}>
-            <InputLabel>Активность</InputLabel>
+            <InputLabel>{t('products.filterActiveLabel')}</InputLabel>
             <Select
-              label="Активность"
+              label={t('products.filterActiveLabel')}
               value={activeFilter}
               onChange={(e) => setActiveFilter(e.target.value as ActiveFilter)}
               MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
             >
-              <MenuItem value="all">Все</MenuItem>
-              <MenuItem value="active">Активные</MenuItem>
-              <MenuItem value="inactive">Неактивные</MenuItem>
+              <MenuItem value="all">{t('products.filterActiveAll')}</MenuItem>
+              <MenuItem value="active">{t('products.filterActiveActive')}</MenuItem>
+              <MenuItem value="inactive">{t('products.filterActiveInactive')}</MenuItem>
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Инвентаризация</InputLabel>
+            <InputLabel>{t('products.filterInventoryLabel')}</InputLabel>
             <Select
-              label="Инвентаризация"
+              label={t('products.filterInventoryLabel')}
               value={trackedFilter}
               onChange={(e) => setTrackedFilter(e.target.value as BoolFilter)}
               MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
             >
-              <MenuItem value="all">Все</MenuItem>
-              <MenuItem value="yes">Участвует</MenuItem>
-              <MenuItem value="no">Не участвует</MenuItem>
+              <MenuItem value="all">{t('products.filterActiveAll')}</MenuItem>
+              <MenuItem value="yes">{t('products.filterInventoryYes')}</MenuItem>
+              <MenuItem value="no">{t('products.filterInventoryNo')}</MenuItem>
             </Select>
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 180 }}>
-            <InputLabel>Закупки</InputLabel>
+            <InputLabel>{t('products.filterPurchaseLabel')}</InputLabel>
             <Select
-              label="Закупки"
+              label={t('products.filterPurchaseLabel')}
               value={purchFilter}
               onChange={(e) => setPurchFilter(e.target.value as BoolFilter)}
               MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
             >
-              <MenuItem value="all">Все</MenuItem>
-              <MenuItem value="yes">Закупается</MenuItem>
-              <MenuItem value="no">Не закупается</MenuItem>
+              <MenuItem value="all">{t('products.filterActiveAll')}</MenuItem>
+              <MenuItem value="yes">{t('products.filterPurchaseYes')}</MenuItem>
+              <MenuItem value="no">{t('products.filterPurchaseNo')}</MenuItem>
             </Select>
           </FormControl>
         </Stack>
@@ -254,34 +256,34 @@ export function ProductsPage(): React.JSX.Element {
         <Card>
           {state.loading ? (
             <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-              <CircularProgress size={20} /><Typography variant="body2">Загрузка…</Typography>
+              <CircularProgress size={20} /><Typography variant="body2">{t('common.loading')}</Typography>
             </Box>
           ) : state.error ? (
             <Box sx={{ p: 3 }}>
-              <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">Повторить</Button>}>
+              <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">{t('common.retry')}</Button>}>
                 {state.error}
               </Alert>
             </Box>
           ) : state.items.length === 0 ? (
             <Box sx={{ p: 3 }}>
-              <Typography variant="body2" color="text.secondary">Ничего не найдено</Typography>
+              <Typography variant="body2" color="text.secondary">{t('products.empty')}</Typography>
             </Box>
           ) : (
             <TableContainer sx={{ overflowX: 'auto' }}>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Название</TableCell>
-                    <TableCell>Зоны</TableCell>
-                    <TableCell align="right">Остаток</TableCell>
-                    <TableCell>Единица</TableCell>
-                    <TableCell align="right">Цена</TableCell>
+                    <TableCell>{t('products.columnName')}</TableCell>
+                    <TableCell>{t('products.columnZones')}</TableCell>
+                    <TableCell align="right">{t('products.columnStock')}</TableCell>
+                    <TableCell>{t('products.columnUnit')}</TableCell>
+                    <TableCell align="right">{t('products.columnPrice')}</TableCell>
                     <TableCell align="right">
-                      <Tooltip title="Оптимальный (минимальный) запас — не влияет на логику, используется для списков закупок">
-                        <span>Норма</span>
+                      <Tooltip title={t('products.targetTooltip')}>
+                        <span>{t('products.columnTarget')}</span>
                       </Tooltip>
                     </TableCell>
-                    {canEdit ? <TableCell align="right">Действия</TableCell> : null}
+                    {canEdit ? <TableCell align="right">{t('products.columnActions')}</TableCell> : null}
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -305,7 +307,7 @@ export function ProductsPage(): React.JSX.Element {
                         <Typography variant="body2">{p.name}</Typography>
                         {p.category ? (
                           <Typography variant="caption" color="text.secondary">
-                            {p.category.name}{p.category.isActive ? '' : ' (неактивна)'}
+                            {p.category.name}{p.category.isActive ? '' : t('products.inactiveCategoryTag')}
                           </Typography>
                         ) : null}
                       </TableCell>
@@ -331,13 +333,13 @@ export function ProductsPage(): React.JSX.Element {
                       <TableCell align="right">
                         <ProductStockCell qty={p.lastQuantity} at={p.lastInventoryAt} stock={p.lastStock} />
                       </TableCell>
-                      <TableCell>{unitLabels[p.baseUnit]}</TableCell>
+                      <TableCell>{t(unitLabelKey(p.baseUnit))}</TableCell>
                       <TableCell align="right">
                         <ProductPriceCell
                           price={p.lastPrice}
                           at={p.lastPriceAt}
                           currency={p.lastPriceCurrency}
-                          unit={unitLabels[p.baseUnit]}
+                          unit={t(unitLabelKey(p.baseUnit))}
                         />
                       </TableCell>
                       <TableCell align="right">
@@ -349,8 +351,8 @@ export function ProductsPage(): React.JSX.Element {
                       {canEdit ? (
                         <TableCell align="right">
                           <Stack direction="row" spacing={1} justifyContent="flex-end">
-                            <Tooltip title="Редактировать"><IconButton size="small" onClick={() => openEdit(p)}><PencilSimpleIcon /></IconButton></Tooltip>
-                            <Tooltip title={p.isActive ? 'Деактивировать' : 'Активировать'}>
+                            <Tooltip title={t('common.edit')}><IconButton size="small" onClick={() => openEdit(p)}><PencilSimpleIcon /></IconButton></Tooltip>
+                            <Tooltip title={p.isActive ? t('common.deactivate') : t('common.activate')}>
                               <IconButton size="small" color={p.isActive ? 'success' : 'error'} onClick={() => toggleActive(p)}>
                                 {p.isActive ? <CheckCircleIcon /> : <ProhibitIcon />}
                               </IconButton>
@@ -464,18 +466,19 @@ function ProductPriceCell({
   currency: string | null;
   unit: string;
 }): React.JSX.Element {
+  const { t } = useI18n();
   if (price === null || at === null) {
     return <Typography component="span" color="text.secondary">—</Typography>;
   }
   const n = Number(price);
   const priceStr = Number.isFinite(n)
-    ? n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    ? n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
     : price;
   const sym = currencySymbol(currency ?? 'THB');
   const tooltipContent = (
     <Box>
-      <Box>Последнее поступление: <b>{formatDate(at)}</b></Box>
-      <Box>{priceStr} {sym} за {unit}</Box>
+      <Box>{t('products.priceTooltipLastReceived', { date: formatDate(at) })}</Box>
+      <Box>{t('products.priceTooltipPerUnit', { price: priceStr, sym, unit })}</Box>
     </Box>
   );
   return (

@@ -22,12 +22,13 @@ import { PlusIcon } from '@phosphor-icons/react/dist/ssr/Plus';
 
 import type { Product } from '@/types/product';
 import type { Supplier } from '@/types/supplier';
-import { unitLabels } from '@/types/unit';
 import { suppliersApi } from '@/lib/api/suppliers';
 import { productsApi } from '@/lib/api/products';
 import { receivingsApi } from '@/lib/api/receivings';
 import { useNotify } from '@/lib/api/notify';
 import { useUser } from '@/hooks/use-user';
+import { useI18n } from '@/lib/i18n/provider';
+import { unitLabelKey } from '@/lib/i18n/unit';
 import { paths } from '@/paths';
 import { ReceivingProductPicker } from './receiving-product-picker';
 
@@ -94,6 +95,7 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
   const router = useRouter();
   const { notify, view: snack } = useNotify();
   const { user } = useUser();
+  const { t } = useI18n();
   const isOwner = user?.role === 'admin';
   // admin (владелец) — любая дата; manager — не раньше вчера.
   const dateMin = isOwner ? undefined : yesterdayIso();
@@ -129,7 +131,7 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
       setHydrationError(null);
       const detailRes = await receivingsApi.get(receivingId);
       if (detailRes.error || !detailRes.data) {
-        setHydrationError(detailRes.error?.message ?? 'Не удалось загрузить поступление');
+        setHydrationError(detailRes.error?.message ?? t('common.error'));
         setHydrating(false);
         return;
       }
@@ -164,7 +166,7 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
       }));
       setHydrating(false);
     })();
-  }, [isEdit, receivingId]);
+  }, [isEdit, receivingId, t]);
 
   const setQuantity = (productId: string, raw: string): void => {
     const sanitized = raw.replace(',', '.');
@@ -243,7 +245,7 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
       notify(error.message, 'error');
       return;
     }
-    notify(isEdit ? 'Поступление обновлено' : 'Поступление создано');
+    notify(isEdit ? t('receivings.updatedNotify') : t('receivings.createdNotify'));
     router.push(paths.dashboard.receiving(data!.id));
   };
 
@@ -255,11 +257,11 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
           size="small"
           onClick={() => router.push(isEdit && receivingId ? paths.dashboard.receiving(receivingId) : paths.dashboard.receivings)}
         >
-          ← Назад
+          {t('common.back')}
         </Button>
-        <Typography variant="h5">{isEdit ? 'Редактирование поступления' : 'Поступление товара'}</Typography>
+        <Typography variant="h5">{isEdit ? t('receivings.editTitle') : t('receivings.newTitle')}</Typography>
         <Box sx={{ flex: 1 }} />
-        {isEdit ? null : <Typography variant="caption" color="text.secondary">Черновик · не сохранён</Typography>}
+        {isEdit ? null : <Typography variant="caption" color="text.secondary">{t('receivings.draftUnsaved')}</Typography>}
       </Stack>
 
       {hydrationError ? <Alert severity="error">{hydrationError}</Alert> : null}
@@ -276,14 +278,14 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
             }}
           >
             <FormControl fullWidth>
-              <InputLabel>Поставщик</InputLabel>
+              <InputLabel>{t('receivings.supplier')}</InputLabel>
               <Select
-                label="Поставщик"
+                label={t('receivings.supplier')}
                 value={supplierId}
                 onChange={(e) => setSupplierId(e.target.value)}
                 MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
               >
-                <MenuItem value=""><em>Не выбран</em></MenuItem>
+                <MenuItem value=""><em>{t('receivings.supplierNone')}</em></MenuItem>
                 {suppliers.map((s) => (
                   <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
                 ))}
@@ -291,7 +293,7 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
             </FormControl>
             <TextField
               type="date"
-              label="Дата поступления"
+              label={t('receivings.receivedAt')}
               value={receivedAt}
               onChange={(e) => setReceivedAt(e.target.value)}
               InputLabelProps={{ shrink: true }}
@@ -299,8 +301,8 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
               error={dateTooOld}
               helperText={
                 dateTooOld
-                  ? 'Дата не может быть раньше вчерашней'
-                  : isOwner ? 'Владелец может выбрать любую дату' : 'Не раньше вчерашней'
+                  ? t('receivings.dateTooOld')
+                  : isOwner ? t('receivings.dateHintOwner') : t('receivings.dateHintManager')
               }
             />
           </Box>
@@ -311,7 +313,7 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
       <Card>
         <CardContent>
           <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
-            <Typography variant="overline" color="text.secondary">Товары</Typography>
+            <Typography variant="overline" color="text.secondary">{t('receivings.itemsSection')}</Typography>
             <Chip size="small" label={positions} color="primary" variant="outlined" />
             <Box sx={{ flex: 1 }} />
             <Button
@@ -320,13 +322,13 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
               startIcon={<PlusIcon />}
               onClick={() => setPickerOpen(true)}
             >
-              Добавить товар
+              {t('receivings.addItem')}
             </Button>
           </Stack>
 
           {items.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
-              Товары ещё не добавлены. Нажмите «Добавить товар».
+              {t('receivings.itemsEmpty')}
             </Typography>
           ) : (
             <>
@@ -336,10 +338,10 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
                 sx={{ pb: 1, color: 'text.secondary', display: { xs: 'none', sm: 'flex' } }}
               >
                 <Typography variant="caption" sx={{ flex: 1, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Товар · распределение по складам
+                  {t('receivings.colProductDistribution')}
                 </Typography>
                 <Typography variant="caption" sx={{ pr: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Принято всего
+                  {t('receivings.colTakenTotal')}
                 </Typography>
               </Stack>
 
@@ -357,15 +359,15 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
 
               <Stack direction="row" spacing={2} sx={{ pt: 2 }} alignItems="center" flexWrap="wrap">
                 <Typography variant="body2" color="text.secondary">
-                  <b>{positions}</b> {pluralPositions(positions)}
+                  {t('receivings.positionsWord', { n: positions })}
                 </Typography>
                 <Dot />
                 <Typography variant="body2" color="success.main">
-                  {complete} распределено полностью
+                  {t('receivings.completeSuffix', { n: complete })}
                 </Typography>
                 <Dot />
                 <Typography variant="body2" color="warning.main">
-                  {attention} требует внимания
+                  {t('receivings.attentionSuffix', { n: attention })}
                 </Typography>
               </Stack>
             </>
@@ -382,7 +384,7 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
             alignItems={{ xs: 'stretch', sm: 'center' }}
           >
             <TextField
-              label="Стоимость доставки"
+              label={t('receivings.deliveryCost')}
               value={deliveryCost}
               onChange={(e) => setDelivery(e.target.value)}
               inputProps={{
@@ -398,16 +400,16 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
             <Box sx={{ flex: 1 }} />
             <Stack spacing={0.25} sx={{ minWidth: { sm: 220 } }}>
               <Stack direction="row" justifyContent="space-between" spacing={2}>
-                <Typography variant="body2" color="text.secondary">Товары</Typography>
+                <Typography variant="body2" color="text.secondary">{t('receivings.totalItems')}</Typography>
                 <Typography variant="body2">{formatMoney(itemsSubtotal)} ฿</Typography>
               </Stack>
               <Stack direction="row" justifyContent="space-between" spacing={2}>
-                <Typography variant="body2" color="text.secondary">Доставка</Typography>
+                <Typography variant="body2" color="text.secondary">{t('receivings.totalDelivery')}</Typography>
                 <Typography variant="body2">{formatMoney(deliveryTotal)} ฿</Typography>
               </Stack>
               <Divider sx={{ my: 0.5 }} />
               <Stack direction="row" justifyContent="space-between" spacing={2}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Всего</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t('receivings.totalGrand')}</Typography>
                 <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{formatMoney(grandTotal)} ฿</Typography>
               </Stack>
             </Stack>
@@ -424,10 +426,10 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
           disabled={saving}
           onClick={() => router.push(isEdit && receivingId ? paths.dashboard.receiving(receivingId) : paths.dashboard.receivings)}
         >
-          Отмена
+          {t('common.cancel')}
         </Button>
         <Button variant="contained" size="large" disabled={!canSave || saving || hydrating} onClick={submit}>
-          {saving ? 'Сохранение…' : isEdit ? 'Сохранить изменения' : 'Сохранить поступление'}
+          {saving ? t('receivings.savingButton') : isEdit ? t('receivings.saveEditButton') : t('receivings.saveButton')}
         </Button>
       </Stack>
 
@@ -455,14 +457,6 @@ export function ReceivingNewPage({ mode = 'create', receivingId }: ReceivingNewP
   );
 }
 
-function pluralPositions(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return 'позиция';
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'позиции';
-  return 'позиций';
-}
-
 function Dot(): React.JSX.Element {
   return <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: 'text.disabled' }} />;
 }
@@ -477,10 +471,11 @@ interface ItemRowProps {
 function ItemRow({
   item, onQuantityChange, onCostChange, onAllocationChange,
 }: ItemRowProps): React.JSX.Element {
+  const { t } = useI18n();
   const { product: p, quantity, cost, allocations } = item;
   const total = parseQty(quantity);
   const distributed = sumAllocations(allocations);
-  const unit = unitLabels[p.baseUnit];
+  const unit = t(unitLabelKey(p.baseUnit));
   const status = itemStatus(item);
   const zones = p.zones ?? [];
 
@@ -517,7 +512,7 @@ function ItemRow({
 
         <Stack direction="row" spacing={1}>
           <TextField
-            label="Количество"
+            label={t('receivings.quantity')}
             value={quantity}
             onChange={(e) => onQuantityChange(e.target.value)}
             error={qtyError}
@@ -532,7 +527,7 @@ function ItemRow({
             sx={{ flex: 1, width: { sm: 200 } }}
           />
           <TextField
-            label="Стоимость"
+            label={t('receivings.cost')}
             value={cost}
             onChange={(e) => onCostChange(e.target.value)}
             inputProps={{
@@ -551,11 +546,11 @@ function ItemRow({
       {/* Распределение по зонам товара */}
       {zones.length === 0 ? (
         <Typography variant="caption" color="warning.main">
-          У товара не указано ни одной зоны — распределить некуда. Задайте зоны в карточке товара.
+          {t('receivings.zonesEmpty')}
         </Typography>
       ) : (
         <Stack spacing={1} sx={{ pt: 1 }}>
-          <Typography variant="subtitle2" color="text.secondary">Зоны</Typography>
+          <Typography variant="subtitle2" color="text.secondary">{t('receivings.zonesLabel')}</Typography>
           <Box
             sx={{
               display: 'grid',
@@ -592,10 +587,10 @@ function ItemRow({
           sx={{ flex: 1, height: 6, borderRadius: 3, maxWidth: { sm: 360 } }}
         />
         <Typography variant="body2" sx={{ color: captionColor }}>
-          Распределено {formatQtyShort(distributed)}
+          {t('receivings.progressPrefix')} {formatQtyShort(distributed)}
           {total > 0 ? ` / ${formatQtyShort(total)} ${unit}` : ` ${unit}`}
-          {status === 'partial' ? ` · осталось ${formatQtyShort(total - distributed)}` : ''}
-          {status === 'over' ? ` · превышение на ${formatQtyShort(distributed - total)}` : ''}
+          {status === 'partial' ? ` · ${t('receivings.progressRemaining', { n: formatQtyShort(total - distributed) })}` : ''}
+          {status === 'over' ? ` · ${t('receivings.progressOver', { n: formatQtyShort(distributed - total) })}` : ''}
         </Typography>
       </Stack>
     </Stack>

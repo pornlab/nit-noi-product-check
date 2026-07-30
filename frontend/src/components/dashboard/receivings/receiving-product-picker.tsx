@@ -32,10 +32,11 @@ import { CaretRightIcon } from '@phosphor-icons/react/dist/ssr/CaretRight';
 import type { Category } from '@/types/category';
 import type { Product } from '@/types/product';
 import type { Zone } from '@/types/zone';
-import { unitLabels } from '@/types/unit';
 import { categoriesApi } from '@/lib/api/categories';
 import { productsApi } from '@/lib/api/products';
 import { zonesApi } from '@/lib/api/zones';
+import { useI18n } from '@/lib/i18n/provider';
+import { unitLabelKey } from '@/lib/i18n/unit';
 
 export interface ReceivingProductPickerProps {
   open: boolean;
@@ -49,6 +50,7 @@ export interface ReceivingProductPickerProps {
 export function ReceivingProductPicker({
   open, initialSelected, onCancel, onConfirm,
 }: ReceivingProductPickerProps): React.JSX.Element {
+  const { t } = useI18n();
   const [searchInput, setSearchInput] = React.useState('');
   const [search, setSearch] = React.useState('');
   const [categoryId, setCategoryId] = React.useState('');
@@ -157,41 +159,41 @@ export function ReceivingProductPicker({
 
   return (
     <Dialog open={open} onClose={onCancel} fullWidth maxWidth="lg">
-      <DialogTitle>Выбор товаров</DialogTitle>
+      <DialogTitle>{t('receivings.pickerTitle')}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
           <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
             <TextField
               size="small"
-              placeholder="Поиск"
+              placeholder={t('common.search')}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               sx={{ minWidth: 260 }}
             />
             <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Категория</InputLabel>
+              <InputLabel>{t('products.filterCategoryLabel')}</InputLabel>
               <Select
-                label="Категория"
+                label={t('products.filterCategoryLabel')}
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
                 MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
               >
-                <MenuItem value="">Все категории</MenuItem>
-                <MenuItem value="none">Без категории</MenuItem>
+                <MenuItem value="">{t('receivings.pickerCategoryAll')}</MenuItem>
+                <MenuItem value="none">{t('receivings.pickerCategoryNone')}</MenuItem>
                 {categories.filter((c) => c.isActive).map((c) => (
                   <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
             <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel>Зона</InputLabel>
+              <InputLabel>{t('products.filterZoneLabel')}</InputLabel>
               <Select
-                label="Зона"
+                label={t('products.filterZoneLabel')}
                 value={zoneId}
                 onChange={(e) => setZoneId(e.target.value)}
                 MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
               >
-                <MenuItem value="">Все зоны</MenuItem>
+                <MenuItem value="">{t('receivings.pickerZoneAll')}</MenuItem>
                 {zones.filter((z) => z.isActive).map((z) => (
                   <MenuItem key={z.id} value={z.id}>{z.name}</MenuItem>
                 ))}
@@ -210,37 +212,37 @@ export function ReceivingProductPicker({
             }}
           >
             <Column
-              title={`Доступные (${leftItems.length})`}
+              title={t('receivings.pickerAvailable', { count: leftItems.length })}
               items={leftItems}
               checked={leftChecked}
               onToggle={toggleLeft}
-              emptyLabel={state.loading ? 'Загрузка…' : 'Нет товаров по фильтрам'}
+              emptyLabel={state.loading ? t('common.loading') : t('receivings.pickerNothing')}
               loading={state.loading}
             />
 
             <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} justifyContent="center" alignItems="center">
-              <Tooltip title="Перенести все">
+              <Tooltip title={t('receivings.pickerMoveAll')}>
                 <span>
                   <IconButton onClick={moveAllRight} disabled={leftItems.length === 0}>
                     <CaretDoubleRightIcon />
                   </IconButton>
                 </span>
               </Tooltip>
-              <Tooltip title="Перенести выделенные">
+              <Tooltip title={t('receivings.pickerMoveSelected')}>
                 <span>
                   <IconButton onClick={moveRight} disabled={leftChecked.size === 0}>
                     <CaretRightIcon />
                   </IconButton>
                 </span>
               </Tooltip>
-              <Tooltip title="Убрать выделенные">
+              <Tooltip title={t('receivings.pickerRemoveSelected')}>
                 <span>
                   <IconButton onClick={moveLeft} disabled={rightChecked.size === 0}>
                     <CaretLeftIcon />
                   </IconButton>
                 </span>
               </Tooltip>
-              <Tooltip title="Убрать все">
+              <Tooltip title={t('receivings.pickerRemoveAll')}>
                 <span>
                   <IconButton onClick={moveAllLeft} disabled={selected.length === 0}>
                     <CaretDoubleLeftIcon />
@@ -250,19 +252,19 @@ export function ReceivingProductPicker({
             </Stack>
 
             <Column
-              title={`Выбраны (${selected.length})`}
+              title={t('receivings.pickerChosen', { count: selected.length })}
               items={selected}
               checked={rightChecked}
               onToggle={toggleRight}
-              emptyLabel="Пока пусто"
+              emptyLabel={t('receivings.pickerEmpty')}
             />
           </Box>
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onCancel}>Отмена</Button>
+        <Button onClick={onCancel}>{t('common.cancel')}</Button>
         <Button variant="contained" onClick={confirm}>
-          Ок ({selected.length})
+          {t('common.ok')} ({selected.length})
         </Button>
       </DialogActions>
     </Dialog>
@@ -279,6 +281,7 @@ interface ColumnProps {
 }
 
 function Column({ title, items, checked, onToggle, emptyLabel, loading }: ColumnProps): React.JSX.Element {
+  const { t } = useI18n();
   return (
     <Box
       sx={{
@@ -313,7 +316,7 @@ function Column({ title, items, checked, onToggle, emptyLabel, loading }: Column
                   primary={p.name}
                   secondary={
                     <>
-                      {p.category?.name ?? 'Без категории'} · {unitLabels[p.baseUnit]}
+                      {p.category?.name ?? t('receivings.withoutCategory')} · {t(unitLabelKey(p.baseUnit))}
                     </>
                   }
                 />

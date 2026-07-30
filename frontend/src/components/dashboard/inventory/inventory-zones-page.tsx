@@ -14,6 +14,7 @@ import Typography from '@mui/material/Typography';
 
 import type { InventoryZoneSummary } from '@/types/inventory';
 import { inventoryApi } from '@/lib/api/inventory';
+import { useI18n } from '@/lib/i18n/provider';
 import { paths } from '@/paths';
 
 function isSameLocalDay(iso: string, ref: Date): boolean {
@@ -23,24 +24,36 @@ function isSameLocalDay(iso: string, ref: Date): boolean {
       && d.getDate() === ref.getDate();
 }
 
-function formatLastCompleted(iso: string | null): { text: string; today: boolean } {
-  if (!iso) return { text: 'ещё не проводилась', today: false };
-  const now = new Date();
+function formatTime(iso: string): string {
   const d = new Date(iso);
-  const today = isSameLocalDay(iso, now);
-  const timeStr = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  if (today) return { text: `сегодня в ${timeStr}`, today: true };
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (isSameLocalDay(iso, yesterday)) return { text: `вчера в ${timeStr}`, today: false };
-  const dateStr = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  return { text: `${dateStr} в ${timeStr}`, today: false };
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+function formatDMY(iso: string): string {
+  const d = new Date(iso);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${day}.${month}.${d.getFullYear()}`;
 }
 
 export function InventoryZonesPage(): React.JSX.Element {
+  const { t } = useI18n();
   const [state, setState] = React.useState<{ loading: boolean; error: string | null; items: InventoryZoneSummary[] }>({
     loading: true, error: null, items: [],
   });
+
+  const formatLastCompleted = React.useCallback((iso: string | null): { text: string; today: boolean } => {
+    if (!iso) return { text: t('inventory.lastNever'), today: false };
+    const now = new Date();
+    const today = isSameLocalDay(iso, now);
+    const time = formatTime(iso);
+    if (today) return { text: t('inventory.lastToday', { time }), today: true };
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (isSameLocalDay(iso, yesterday)) return { text: t('inventory.lastYesterday', { time }), today: false };
+    return { text: t('inventory.lastAtDate', { date: formatDMY(iso), time }), today: false };
+  }, [t]);
 
   const load = React.useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
@@ -53,21 +66,21 @@ export function InventoryZonesPage(): React.JSX.Element {
 
   return (
     <Stack spacing={2}>
-      <Typography variant="h5">Инвентаризация</Typography>
+      <Typography variant="h5">{t('inventory.pageTitle')}</Typography>
       <Typography variant="body2" color="text.secondary">
-        Выберите зону, чтобы пересчитать остатки.
+        {t('inventory.zonesPickHint')}
       </Typography>
 
       {state.loading ? (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <CircularProgress size={20} /><Typography variant="body2">Загрузка…</Typography>
+          <CircularProgress size={20} /><Typography variant="body2">{t('common.loading')}</Typography>
         </Box>
       ) : state.error ? (
-        <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">Повторить</Button>}>
+        <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">{t('common.retry')}</Button>}>
           {state.error}
         </Alert>
       ) : state.items.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">Доступных зон нет.</Typography>
+        <Typography variant="body2" color="text.secondary">{t('inventory.zonesEmpty')}</Typography>
       ) : (
         <Grid container spacing={2}>
           {state.items.map((z) => {
@@ -80,7 +93,7 @@ export function InventoryZonesPage(): React.JSX.Element {
                       <Typography variant="h6">{z.name}</Typography>
                       <Box>
                         <Typography variant="caption" color="text.secondary">
-                          Последняя инвентаризация
+                          {t('inventory.zoneCardLastLabel')}
                         </Typography>
                         <Typography variant="body2" sx={{ color: info.today ? 'success.main' : 'text.primary', fontWeight: info.today ? 600 : 400 }}>
                           {info.text}
@@ -95,7 +108,7 @@ export function InventoryZonesPage(): React.JSX.Element {
                         fullWidth
                         sx={{ minHeight: 48, borderRadius: '12px', textTransform: 'none', fontWeight: 600 }}
                       >
-                        {z.lastCompletedAt ? 'Открыть' : 'Начать инвентаризацию'}
+                        {z.lastCompletedAt ? t('inventory.open') : t('inventory.startInventory')}
                       </Button>
                     </Stack>
                   </CardContent>

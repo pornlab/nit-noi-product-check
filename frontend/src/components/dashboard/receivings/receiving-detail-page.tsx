@@ -22,30 +22,29 @@ import Typography from '@mui/material/Typography';
 import type { ReceivingDetail } from '@/types/receiving';
 import { currencySymbol, formatReceivingNumber } from '@/types/receiving';
 import { receivingsApi } from '@/lib/api/receivings';
-import { unitLabels, type Unit } from '@/types/unit';
+import { type Unit } from '@/types/unit';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { useNotify } from '@/lib/api/notify';
 import { useUser } from '@/hooks/use-user';
+import { useI18n } from '@/lib/i18n/provider';
+import { unitLabelKey } from '@/lib/i18n/unit';
 import { paths } from '@/paths';
 import { PencilSimpleIcon } from '@phosphor-icons/react/dist/ssr/PencilSimple';
 import { TrashIcon } from '@phosphor-icons/react/dist/ssr/Trash';
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Администратор',
-  manager: 'Менеджер',
-  employee: 'Сотрудник',
-};
 
 function formatDate(iso: string): string {
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
     const [y, m, d] = iso.split('-');
     return `${d}.${m}.${y}`;
   }
-  return new Date(iso).toLocaleDateString('ru-RU');
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
 }
 function formatDateTime(iso: string): string {
   const d = new Date(iso);
-  return `${d.toLocaleDateString('ru-RU')}, ${d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+  const date = `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${date}, ${time}`;
 }
 function formatQty(v: string): string {
   const n = Number(v);
@@ -56,7 +55,7 @@ function formatQty(v: string): string {
 function formatMoney(v: string): string {
   const n = Number(v);
   if (!Number.isFinite(n)) return v;
-  return n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 interface Field { label: string; value: React.ReactNode }
@@ -78,8 +77,11 @@ function Meta({ items }: { items: Field[] }): React.JSX.Element {
 export function ReceivingDetailPage({ receivingId }: { receivingId: string }): React.JSX.Element {
   const router = useRouter();
   const { user } = useUser();
+  const { t } = useI18n();
   const { notify, view: snack } = useNotify();
   const { confirm, view: confirmView } = useConfirm();
+  const roleLabel = (r: string): string =>
+    r === 'admin' ? t('roles.admin') : r === 'manager' ? t('roles.manager') : r === 'employee' ? t('roles.employee') : r;
   const canDelete = user?.role === 'admin';
   const canEdit = user?.role === 'admin';
   const [deleting, setDeleting] = React.useState(false);
@@ -99,35 +101,35 @@ export function ReceivingDetailPage({ receivingId }: { receivingId: string }): R
   if (state.loading) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 3 }}>
-        <CircularProgress size={20} /><Typography variant="body2">Загрузка…</Typography>
+        <CircularProgress size={20} /><Typography variant="body2">{t('common.loading')}</Typography>
       </Box>
     );
   }
   if (state.error) {
     return (
       <Stack spacing={2} sx={{ p: 3 }}>
-        <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">Повторить</Button>}>
+        <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">{t('common.retry')}</Button>}>
           {state.error}
         </Alert>
-        <Button onClick={() => router.push(paths.dashboard.receivings)}>К списку поступлений</Button>
+        <Button onClick={() => router.push(paths.dashboard.receivings)}>{t('common.backToList')}</Button>
       </Stack>
     );
   }
-  if (!state.data) return <Typography variant="body2">Нет данных</Typography>;
+  if (!state.data) return <Typography variant="body2">—</Typography>;
 
   const r = state.data;
   const sym = currencySymbol(r.currency);
   const doDelete = (): void => {
     confirm({
-      title: 'Удалить поступление',
-      message: `Удалить поступление ${formatReceivingNumber(r.sequenceNumber)}? Действие нельзя отменить.`,
+      title: t('receivings.confirmDeleteTitle'),
+      message: t('receivings.confirmDeleteBody', { number: formatReceivingNumber(r.sequenceNumber) }),
       danger: true,
       onConfirm: async () => {
         setDeleting(true);
         const { error } = await receivingsApi.remove(r.id);
         setDeleting(false);
         if (error) { notify(error.message, 'error'); return; }
-        notify('Поступление удалено');
+        notify(t('receivings.deletedNotify'));
         router.push(paths.dashboard.receivings);
       },
     });
@@ -136,8 +138,8 @@ export function ReceivingDetailPage({ receivingId }: { receivingId: string }): R
   return (
     <Stack spacing={2}>
       <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-        <Button size="small" onClick={() => router.push(paths.dashboard.receivings)}>← К списку</Button>
-        <Typography variant="h5">Поступление {formatReceivingNumber(r.sequenceNumber)}</Typography>
+        <Button size="small" onClick={() => router.push(paths.dashboard.receivings)}>{t('common.backToList')}</Button>
+        <Typography variant="h5">{t('receivings.detailTitle', { number: formatReceivingNumber(r.sequenceNumber) })}</Typography>
         <Box sx={{ flex: 1 }} />
         {canEdit ? (
           <Button
@@ -146,7 +148,7 @@ export function ReceivingDetailPage({ receivingId }: { receivingId: string }): R
             disabled={deleting}
             onClick={() => router.push(paths.dashboard.receivingEdit(r.id))}
           >
-            Редактировать
+            {t('receivings.editButton')}
           </Button>
         ) : null}
         {canDelete ? (
@@ -157,7 +159,7 @@ export function ReceivingDetailPage({ receivingId }: { receivingId: string }): R
             disabled={deleting}
             onClick={doDelete}
           >
-            Удалить
+            {t('receivings.deleteButton')}
           </Button>
         ) : null}
       </Stack>
@@ -165,20 +167,20 @@ export function ReceivingDetailPage({ receivingId }: { receivingId: string }): R
       <Card>
         <CardContent>
           <Meta items={[
-            { label: 'Номер', value: <Box component="span" sx={{ fontWeight: 700 }}>{formatReceivingNumber(r.sequenceNumber)}</Box> },
-            { label: 'Дата поступления', value: formatDate(r.receivedAt) },
-            { label: 'Поставщик', value: r.supplier.name },
-            { label: 'Создано', value: formatDateTime(r.createdAt) },
+            { label: t('receivings.metaNumber'), value: <Box component="span" sx={{ fontWeight: 700 }}>{formatReceivingNumber(r.sequenceNumber)}</Box> },
+            { label: t('receivings.metaDate'), value: formatDate(r.receivedAt) },
+            { label: t('receivings.metaSupplier'), value: r.supplier.name },
+            { label: t('receivings.metaCreatedAt'), value: formatDateTime(r.createdAt) },
             {
-              label: 'Автор',
+              label: t('receivings.metaAuthor'),
               value: (
                 <Stack direction="row" spacing={1} alignItems="center">
                   <span>{r.createdBy.name}</span>
-                  <Chip size="small" label={ROLE_LABELS[r.createdBy.role] ?? r.createdBy.role} />
+                  <Chip size="small" label={roleLabel(r.createdBy.role)} />
                 </Stack>
               ),
             },
-            { label: 'Позиций', value: r.items.length },
+            { label: t('receivings.metaPositions'), value: r.items.length },
           ]} />
         </CardContent>
       </Card>
@@ -188,15 +190,15 @@ export function ReceivingDetailPage({ receivingId }: { receivingId: string }): R
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Товар</TableCell>
-                <TableCell>Распределение по зонам</TableCell>
-                <TableCell align="right">Количество</TableCell>
-                <TableCell align="right">Стоимость, {sym}</TableCell>
+                <TableCell>{t('inventory.columnProduct')}</TableCell>
+                <TableCell>{t('receivings.colProductDistribution')}</TableCell>
+                <TableCell align="right">{t('receivings.quantity')}</TableCell>
+                <TableCell align="right">{t('receivings.cost')}, {sym}</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {r.items.map((it) => {
-                const unit = unitLabels[it.product.baseUnit as Unit] ?? it.product.baseUnit;
+                const unit = t(unitLabelKey(it.product.baseUnit as Unit));
                 return (
                   <TableRow key={it.id}>
                     <TableCell sx={{ verticalAlign: 'top' }}>{it.product.name}</TableCell>
@@ -226,16 +228,16 @@ export function ReceivingDetailPage({ receivingId }: { receivingId: string }): R
         <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
           <Stack spacing={0.25} sx={{ minWidth: 240 }}>
             <Stack direction="row" justifyContent="space-between" spacing={2}>
-              <Typography variant="body2" color="text.secondary">Товары</Typography>
+              <Typography variant="body2" color="text.secondary">{t('receivings.totalItems')}</Typography>
               <Typography variant="body2">{formatMoney(r.itemsTotalCost)} {sym}</Typography>
             </Stack>
             <Stack direction="row" justifyContent="space-between" spacing={2}>
-              <Typography variant="body2" color="text.secondary">Доставка</Typography>
+              <Typography variant="body2" color="text.secondary">{t('receivings.totalDelivery')}</Typography>
               <Typography variant="body2">{formatMoney(r.deliveryCost)} {sym}</Typography>
             </Stack>
             <Divider sx={{ my: 0.5 }} />
             <Stack direction="row" justifyContent="space-between" spacing={2}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>Всего</Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{t('receivings.totalGrand')}</Typography>
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{formatMoney(r.grandTotal)} {sym}</Typography>
             </Stack>
           </Stack>

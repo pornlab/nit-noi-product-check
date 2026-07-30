@@ -27,7 +27,8 @@ import type { Category } from '@/types/category';
 import type { CreateProductInput, Product, UpdateProductInput } from '@/types/product';
 import type { Unit } from '@/types/unit';
 import type { Zone } from '@/types/zone';
-import { unitLabels } from '@/types/unit';
+import { useI18n } from '@/lib/i18n/provider';
+import { unitLabelKey } from '@/lib/i18n/unit';
 
 const UNIT_VALUES: [Unit, ...Unit[]] = ['PIECE', 'GRAM', 'KILOGRAM', 'MILLILITER', 'LITER', 'PACK', 'BOX', 'BOTTLE', 'CAN', 'BAG'];
 
@@ -77,6 +78,7 @@ export interface ProductDialogProps {
 export function ProductDialog({
   open, mode, product, categories, zones, saving, serverError, onCancel, onSubmit,
 }: ProductDialogProps): React.JSX.Element {
+  const { t } = useI18n();
   const { control, handleSubmit, reset, formState: { errors } } = useForm<Values>({
     resolver: zodResolver(schema),
     defaultValues: empty,
@@ -136,27 +138,27 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onClose={onCancel} fullWidth maxWidth="sm">
-      <DialogTitle>{mode === 'create' ? 'Новый товар' : 'Редактирование товара'}</DialogTitle>
+      <DialogTitle>{mode === 'create' ? t('products.newProduct') : t('products.editProduct')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }} component="form" id="product-form" onSubmit={handleSubmit(submit)}>
-          <Typography variant="overline" color="text.secondary">Основное</Typography>
+          <Typography variant="overline" color="text.secondary">{t('products.sectionMain')}</Typography>
           <Controller name="name" control={control} render={({ field }) => (
-            <TextField {...field} label="Название" required fullWidth autoFocus
+            <TextField {...field} label={t('products.fieldName')} required fullWidth autoFocus
               error={Boolean(errors.name)} helperText={errors.name?.message} inputProps={{ maxLength: 200 }} />
           )} />
           <Controller name="categoryId" control={control} render={({ field }) => (
             <FormControl fullWidth>
-              <InputLabel>Категория</InputLabel>
+              <InputLabel>{t('products.fieldCategory')}</InputLabel>
               <Select
                 {...field}
-                label="Категория"
+                label={t('products.fieldCategory')}
                 value={field.value ?? ''}
                 MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
               >
-                <MenuItem value=""><em>Без категории</em></MenuItem>
+                <MenuItem value=""><em>{t('products.fieldCategoryNone')}</em></MenuItem>
                 {showInactiveCurrent && product?.category ? (
                   <MenuItem value={product.category.id}>
-                    {product.category.name} (неактивна)
+                    {product.category.name}{t('products.inactiveCategoryTag')}
                   </MenuItem>
                 ) : null}
                 {activeCategories.map((c) => (
@@ -167,39 +169,39 @@ export function ProductDialog({
           )} />
           <Controller name="baseUnit" control={control} render={({ field }) => (
             <FormControl fullWidth required>
-              <InputLabel>Базовая единица</InputLabel>
+              <InputLabel>{t('products.fieldBaseUnit')}</InputLabel>
               <Select
                 {...field}
-                label="Базовая единица"
+                label={t('products.fieldBaseUnit')}
                 MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
               >
                 {UNIT_VALUES.map((u) => (
-                  <MenuItem key={u} value={u}>{unitLabels[u]} — {u}</MenuItem>
+                  <MenuItem key={u} value={u}>{t(unitLabelKey(u))} — {u}</MenuItem>
                 ))}
               </Select>
             </FormControl>
           )} />
           <Controller name="description" control={control} render={({ field }) => (
-            <TextField {...field} label="Описание" fullWidth multiline minRows={3}
+            <TextField {...field} label={t('products.fieldDescription')} fullWidth multiline minRows={3}
               error={Boolean(errors.description)} helperText={errors.description?.message}
               inputProps={{ maxLength: 2000 }} />
           )} />
 
           <Divider />
-          <Typography variant="overline" color="text.secondary">Идентификаторы</Typography>
+          <Typography variant="overline" color="text.secondary">{t('products.sectionIdentifiers')}</Typography>
           <Controller name="sku" control={control} render={({ field }) => (
-            <TextField {...field} label="Внутренний артикул (SKU)" fullWidth
+            <TextField {...field} label={t('products.fieldSku')} fullWidth
               error={Boolean(errors.sku)} helperText={errors.sku?.message}
               inputProps={{ maxLength: 100 }} />
           )} />
           <Controller name="barcode" control={control} render={({ field }) => (
-            <TextField {...field} label="Штрихкод" fullWidth
+            <TextField {...field} label={t('products.fieldBarcode')} fullWidth
               error={Boolean(errors.barcode)} helperText={errors.barcode?.message}
               inputProps={{ maxLength: 128 }} />
           )} />
 
           <Divider />
-          <Typography variant="overline" color="text.secondary">Зоны</Typography>
+          <Typography variant="overline" color="text.secondary">{t('products.sectionZones')}</Typography>
           <Controller name="zoneIds" control={control} render={({ field }) => {
             const selected = zoneOptions.filter((o) => field.value.includes(o.id));
             return (
@@ -209,7 +211,7 @@ export function ProductDialog({
                 options={zoneOptions}
                 value={selected}
                 onChange={(_, val) => field.onChange(val.map((v) => v.id))}
-                getOptionLabel={(o) => o.isActive ? o.name : `${o.name} (неактивна)`}
+                getOptionLabel={(o) => o.isActive ? o.name : `${o.name}${t('products.inactiveCategoryTag')}`}
                 isOptionEqualToValue={(a, b) => a.id === b.id}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => {
@@ -219,44 +221,44 @@ export function ProductDialog({
                         key={key}
                         size="small"
                         variant={option.isActive ? 'filled' : 'outlined'}
-                        label={option.isActive ? option.name : `${option.name} (неактивна)`}
+                        label={option.isActive ? option.name : `${option.name}${t('products.inactiveCategoryTag')}`}
                         {...tagProps}
                       />
                     );
                   })
                 }
                 renderInput={(params) => (
-                  <TextField {...params} label="В каких зонах используется" placeholder="Выберите зоны" />
+                  <TextField {...params} label={t('products.fieldZones')} placeholder={t('products.fieldZonesPlaceholder')} />
                 )}
               />
             );
           }} />
 
           <Divider />
-          <Typography variant="overline" color="text.secondary">Использование</Typography>
+          <Typography variant="overline" color="text.secondary">{t('products.sectionUsage')}</Typography>
           <Controller name="isInventoryTracked" control={control} render={({ field }) => (
             <FormControlLabel
               control={<Switch checked={Boolean(field.value)} onChange={(_, v) => field.onChange(v)} />}
-              label="Учитывать в инвентаризации"
+              label={t('products.switchInventoryTracked')}
             />
           )} />
           <Controller name="isPurchasable" control={control} render={({ field }) => (
             <FormControlLabel
               control={<Switch checked={Boolean(field.value)} onChange={(_, v) => field.onChange(v)} />}
-              label="Использовать в закупках"
+              label={t('products.switchPurchasable')}
             />
           )} />
 
           <Divider />
-          <Typography variant="overline" color="text.secondary">Целевой запас</Typography>
+          <Typography variant="overline" color="text.secondary">{t('products.sectionTargetStock')}</Typography>
           <Typography variant="caption" color="text.secondary">
-            Не влияет на инвентаризацию и остатки. Используется для будущих списков закупок.
+            {t('products.targetStockHint')}
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
             <Controller name="minQuantity" control={control} render={({ field }) => (
               <TextField
                 {...field}
-                label="Минимальный запас"
+                label={t('products.fieldMinQuantity')}
                 fullWidth
                 error={Boolean(errors.minQuantity)}
                 helperText={errors.minQuantity?.message}
@@ -266,7 +268,7 @@ export function ProductDialog({
             <Controller name="optimalQuantity" control={control} render={({ field }) => (
               <TextField
                 {...field}
-                label="Оптимальный запас"
+                label={t('products.fieldOptimalQuantity')}
                 fullWidth
                 error={Boolean(errors.optimalQuantity)}
                 helperText={errors.optimalQuantity?.message}
@@ -279,9 +281,9 @@ export function ProductDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onCancel} disabled={saving}>Отмена</Button>
+        <Button onClick={onCancel} disabled={saving}>{t('common.cancel')}</Button>
         <Button variant="contained" type="submit" form="product-form" disabled={saving}>
-          {saving ? 'Сохранение…' : 'Сохранить'}
+          {saving ? t('common.saving') : t('common.save')}
         </Button>
       </DialogActions>
     </Dialog>

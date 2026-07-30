@@ -22,13 +22,9 @@ import type { InventorySessionSummary, InventoryZoneSummary } from '@/types/inve
 import { formatInventoryNumber } from '@/types/inventory';
 import { inventoryApi } from '@/lib/api/inventory';
 import { paths } from '@/paths';
+import { useI18n } from '@/lib/i18n/provider';
 import { useUser } from '@/hooks/use-user';
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Администратор',
-  manager: 'Менеджер',
-  employee: 'Сотрудник',
-};
 const ROLE_COLORS: Record<string, 'error' | 'warning' | 'info'> = {
   admin: 'error',
   manager: 'warning',
@@ -42,21 +38,29 @@ function isSameLocalDay(iso: string, ref: Date): boolean {
       && d.getDate() === ref.getDate();
 }
 
-function formatDate(iso: string): string {
+function fmtTime(iso: string): string {
   const d = new Date(iso);
-  const now = new Date();
-  const timeStr = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  if (isSameLocalDay(iso, now)) return `сегодня, ${timeStr}`;
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (isSameLocalDay(iso, yesterday)) return `вчера, ${timeStr}`;
-  const dateStr = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  return `${dateStr}, ${timeStr}`;
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function fmtDMY(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
 }
 
 export function InventoryHistoryPage({ zoneId }: { zoneId: string }): React.JSX.Element {
   const router = useRouter();
   const { user } = useUser();
+  const { t } = useI18n();
+  const roleLabel = (r: string): string =>
+    r === 'admin' ? t('roles.admin') : r === 'manager' ? t('roles.manager') : r === 'employee' ? t('roles.employee') : r;
+  const formatDate = (iso: string): string => {
+    const now = new Date();
+    const time = fmtTime(iso);
+    if (isSameLocalDay(iso, now)) return t('inventory.dateToday', { time });
+    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+    if (isSameLocalDay(iso, yesterday)) return t('inventory.dateYesterday', { time });
+    return t('inventory.dateAt', { date: fmtDMY(iso), time });
+  };
   const [zone, setZone] = React.useState<InventoryZoneSummary | null>(null);
   const [state, setState] = React.useState<{ loading: boolean; error: string | null; items: InventorySessionSummary[] }>({
     loading: true, error: null, items: [],
@@ -87,9 +91,9 @@ export function InventoryHistoryPage({ zoneId }: { zoneId: string }): React.JSX.
   return (
     <Stack spacing={2} sx={{ mt: -6 }}>
       <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-        <Button size="small" onClick={() => router.push(paths.dashboard.inventory)}>← Зоны</Button>
+        <Button size="small" onClick={() => router.push(paths.dashboard.inventory)}>{t('inventory.historyBackToZones')}</Button>
         <Typography variant="h5">
-          Инвентаризации {zone ? `— ${zone.name}` : ''}
+          {zone ? t('inventory.historyPageTitle', { zone: zone.name }) : t('inventory.historyTitle')}
         </Typography>
       </Stack>
 
@@ -102,34 +106,34 @@ export function InventoryHistoryPage({ zoneId }: { zoneId: string }): React.JSX.
           disabled={lockedToday}
           sx={{ minHeight: 44, borderRadius: '12px', textTransform: 'none', fontWeight: 600, minWidth: { sm: 260 } }}
         >
-          {lockedToday ? 'Инвентаризация уже была сегодня' : 'Начать инвентаризацию'}
+          {lockedToday ? t('inventory.lockedToday') : t('inventory.startInventory')}
         </Button>
       </Stack>
 
       <Card>
         {state.loading ? (
           <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <CircularProgress size={20} /><Typography variant="body2">Загрузка…</Typography>
+            <CircularProgress size={20} /><Typography variant="body2">{t('common.loading')}</Typography>
           </Box>
         ) : state.error ? (
           <Box sx={{ p: 3 }}>
-            <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">Повторить</Button>}>
+            <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">{t('common.retry')}</Button>}>
               {state.error}
             </Alert>
           </Box>
         ) : state.items.length === 0 ? (
           <Box sx={{ p: 3 }}>
-            <Typography variant="body2" color="text.secondary">Инвентаризаций пока не было.</Typography>
+            <Typography variant="body2" color="text.secondary">{t('inventory.empty')}</Typography>
           </Box>
         ) : (
           <TableContainer sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>№</TableCell>
-                  <TableCell>Дата</TableCell>
-                  <TableCell>Имя</TableCell>
-                  <TableCell>Роль</TableCell>
+                  <TableCell>{t('inventory.columnNumber')}</TableCell>
+                  <TableCell>{t('inventory.columnDate')}</TableCell>
+                  <TableCell>{t('inventory.columnName')}</TableCell>
+                  <TableCell>{t('inventory.columnRole')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -148,7 +152,7 @@ export function InventoryHistoryPage({ zoneId }: { zoneId: string }): React.JSX.
                     <TableCell>
                       <Chip
                         size="small"
-                        label={ROLE_LABELS[s.createdBy.role] ?? s.createdBy.role}
+                        label={roleLabel(s.createdBy.role)}
                         color={ROLE_COLORS[s.createdBy.role] ?? 'default'}
                       />
                     </TableCell>

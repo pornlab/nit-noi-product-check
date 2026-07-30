@@ -19,6 +19,7 @@ import Typography from '@mui/material/Typography';
 import type { ReceivingSummary } from '@/types/receiving';
 import { currencySymbol, formatReceivingNumber } from '@/types/receiving';
 import { receivingsApi } from '@/lib/api/receivings';
+import { useI18n } from '@/lib/i18n/provider';
 import { paths } from '@/paths';
 
 function formatDate(iso: string): string {
@@ -36,6 +37,7 @@ function formatMoney(v: string): string {
 
 export function ReceivingsPage(): React.JSX.Element {
   const router = useRouter();
+  const { t } = useI18n();
 
   const [state, setState] = React.useState<{
     loading: boolean; error: string | null; items: ReceivingSummary[];
@@ -53,28 +55,28 @@ export function ReceivingsPage(): React.JSX.Element {
   return (
     <Stack spacing={2}>
       <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-        <Typography variant="h5">Поступления</Typography>
+        <Typography variant="h5">{t('receivings.pageTitle')}</Typography>
         <Box sx={{ flex: 1 }} />
         <Button variant="contained" size="large" onClick={() => router.push(paths.dashboard.receivingsNew)}>
-          Добавить поступление
+          {t('receivings.addReceiving')}
         </Button>
       </Stack>
 
       <Card>
         {state.loading ? (
           <Box sx={{ p: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <CircularProgress size={20} /><Typography variant="body2">Загрузка…</Typography>
+            <CircularProgress size={20} /><Typography variant="body2">{t('common.loading')}</Typography>
           </Box>
         ) : state.error ? (
           <Box sx={{ p: 3 }}>
-            <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">Повторить</Button>}>
+            <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">{t('common.retry')}</Button>}>
               {state.error}
             </Alert>
           </Box>
         ) : state.items.length === 0 ? (
           <Box sx={{ p: 3 }}>
             <Typography variant="body2" color="text.secondary">
-              Пока нет поступлений. Нажмите «Добавить поступление».
+              {t('receivings.empty')}
             </Typography>
           </Box>
         ) : (
@@ -82,13 +84,13 @@ export function ReceivingsPage(): React.JSX.Element {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>№</TableCell>
-                  <TableCell>Дата</TableCell>
-                  <TableCell>Поставщик</TableCell>
-                  <TableCell align="right">Позиций</TableCell>
-                  <TableCell align="right">Зон</TableCell>
-                  <TableCell align="right">Всего</TableCell>
-                  <TableCell>Автор</TableCell>
+                  <TableCell>{t('receivings.columnNumber')}</TableCell>
+                  <TableCell>{t('receivings.columnDate')}</TableCell>
+                  <TableCell>{t('receivings.columnSupplier')}</TableCell>
+                  <TableCell align="right">{t('receivings.columnPositions')}</TableCell>
+                  <TableCell align="right">{t('receivings.columnZones')}</TableCell>
+                  <TableCell align="right">{t('receivings.columnTotal')}</TableCell>
+                  <TableCell>{t('receivings.columnAuthor')}</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

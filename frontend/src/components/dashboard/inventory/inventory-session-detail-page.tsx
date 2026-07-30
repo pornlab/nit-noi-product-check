@@ -32,14 +32,9 @@ import { formatInventoryNumber } from '@/types/inventory';
 import { inventoryApi } from '@/lib/api/inventory';
 import { useNotify } from '@/lib/api/notify';
 import { paths } from '@/paths';
-import { unitLabels } from '@/types/unit';
+import { useI18n } from '@/lib/i18n/provider';
+import { unitLabelKey } from '@/lib/i18n/unit';
 import { useUser } from '@/hooks/use-user';
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Администратор',
-  manager: 'Менеджер',
-  employee: 'Сотрудник',
-};
 const ROLE_COLORS: Record<string, 'error' | 'warning' | 'info'> = {
   admin: 'error',
   manager: 'warning',
@@ -91,8 +86,11 @@ function isItemEdited(item: InventorySessionDetailItem): boolean {
 export function InventorySessionDetailPage({ sessionId }: { sessionId: string }): React.JSX.Element {
   const router = useRouter();
   const { user } = useUser();
+  const { t } = useI18n();
   const { notify, view: snack } = useNotify();
   const canEdit = user?.role === 'admin';
+  const roleLabel = (r: string): string =>
+    r === 'admin' ? t('roles.admin') : r === 'manager' ? t('roles.manager') : r === 'employee' ? t('roles.employee') : r;
 
   const [state, setState] = React.useState<{ loading: boolean; error: string | null; data: InventorySessionDetail | null }>({
     loading: true, error: null, data: null,
@@ -124,12 +122,12 @@ export function InventorySessionDetailPage({ sessionId }: { sessionId: string })
     if (!edit.item || edit.saving) return;
     const raw = edit.value.trim().replace(',', '.');
     if (raw === '' || !/^\d+(\.\d{1,3})?$/.test(raw)) {
-      setEdit((s) => ({ ...s, error: 'Введите число (до 3 знаков после запятой)' }));
+      setEdit((s) => ({ ...s, error: t('inventory.editDialogErrorFormat') }));
       return;
     }
     const n = Number(raw);
     if (!Number.isFinite(n) || n < 0) {
-      setEdit((s) => ({ ...s, error: 'Количество не может быть отрицательным' }));
+      setEdit((s) => ({ ...s, error: t('inventory.editDialogErrorRange') }));
       return;
     }
     setEdit((s) => ({ ...s, saving: true, error: null }));
@@ -141,27 +139,27 @@ export function InventorySessionDetailPage({ sessionId }: { sessionId: string })
     }
     setState((s) => ({ ...s, data: data ?? s.data }));
     setEdit({ open: false, item: null, value: '', saving: false, error: null });
-    notify('Позиция обновлена');
+    notify(t('inventory.saved'));
   };
 
   if (state.loading) {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 3 }}>
-        <CircularProgress size={20} /><Typography variant="body2">Загрузка…</Typography>
+        <CircularProgress size={20} /><Typography variant="body2">{t('common.loading')}</Typography>
       </Box>
     );
   }
   if (state.error) {
     return (
       <Stack spacing={2} sx={{ p: 3 }}>
-        <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">Повторить</Button>}>
+        <Alert severity="error" action={<Button onClick={load} color="inherit" size="small">{t('common.retry')}</Button>}>
           {state.error}
         </Alert>
-        <Button onClick={() => router.push(paths.dashboard.inventory)}>К списку зон</Button>
+        <Button onClick={() => router.push(paths.dashboard.inventory)}>{t('common.backToList')}</Button>
       </Stack>
     );
   }
-  if (!state.data) return <Typography variant="body2">Нет данных</Typography>;
+  if (!state.data) return <Typography variant="body2">—</Typography>;
 
   const s = state.data;
   const totalUnits = s.items.reduce((sum, it) => sum + Number(it.quantity), 0);
@@ -170,13 +168,13 @@ export function InventorySessionDetailPage({ sessionId }: { sessionId: string })
     <>
       <Stack spacing={2}>
         <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-          <Button size="small" onClick={() => router.push(paths.dashboard.inventoryZoneHistory(s.zone.id))}>← История</Button>
+          <Button size="small" onClick={() => router.push(paths.dashboard.inventoryZoneHistory(s.zone.id))}>← {t('inventory.historyTitle')}</Button>
           <Typography variant="h5">
             {formatInventoryNumber(s.sequenceNumber)} — {s.zone.name}
           </Typography>
           <Chip
             size="small"
-            label={s.status === 'COMPLETED' ? 'Завершена' : s.status === 'DRAFT' ? 'Черновик' : 'Отменена'}
+            label={s.status === 'COMPLETED' ? t('inventory.statusCompleted') : s.status === 'DRAFT' ? t('inventory.statusDraft') : t('inventory.statusCancelled')}
             color={s.status === 'COMPLETED' ? 'success' : s.status === 'DRAFT' ? 'default' : 'error'}
           />
         </Stack>
@@ -184,23 +182,23 @@ export function InventorySessionDetailPage({ sessionId }: { sessionId: string })
         <Card>
           <CardContent>
             <Meta items={[
-              { label: 'Номер', value: <Box component="span" sx={{ fontWeight: 700 }}>{formatInventoryNumber(s.sequenceNumber)}</Box> },
-              { label: 'Зона', value: s.zone.name },
-              { label: 'Завершена', value: s.completedAt ? formatDateTime(s.completedAt) : '—' },
+              { label: t('inventory.metaNumber'), value: <Box component="span" sx={{ fontWeight: 700 }}>{formatInventoryNumber(s.sequenceNumber)}</Box> },
+              { label: t('inventory.metaZone'), value: s.zone.name },
+              { label: t('inventory.metaCompletedAt'), value: s.completedAt ? formatDateTime(s.completedAt) : '—' },
               {
-                label: 'Кто провёл',
+                label: t('inventory.metaCreatedBy'),
                 value: (
                   <Stack direction="row" spacing={1} alignItems="center">
                     <span>{s.createdBy.name}</span>
                     <Chip
                       size="small"
-                      label={ROLE_LABELS[s.createdBy.role] ?? s.createdBy.role}
+                      label={roleLabel(s.createdBy.role)}
                       color={ROLE_COLORS[s.createdBy.role] ?? 'default'}
                     />
                   </Stack>
                 ),
               },
-              { label: 'Позиций', value: s.items.length },
+              { label: t('inventory.metaItemsCount'), value: s.items.length },
             ]} />
           </CardContent>
         </Card>
@@ -210,11 +208,11 @@ export function InventorySessionDetailPage({ sessionId }: { sessionId: string })
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Категория</TableCell>
-                  <TableCell>Товар</TableCell>
-                  <TableCell align="right">Количество</TableCell>
-                  <TableCell>Единица</TableCell>
-                  {canEdit ? <TableCell align="right">Действия</TableCell> : null}
+                  <TableCell>{t('inventory.columnCategory')}</TableCell>
+                  <TableCell>{t('inventory.columnProduct')}</TableCell>
+                  <TableCell align="right">{t('inventory.columnQuantity')}</TableCell>
+                  <TableCell>{t('inventory.columnUnit')}</TableCell>
+                  {canEdit ? <TableCell align="right">{t('common.actions')}</TableCell> : null}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -232,18 +230,18 @@ export function InventorySessionDetailPage({ sessionId }: { sessionId: string })
                           {edited ? (
                             <Tooltip title={
                               it.updatedBy
-                                ? `Исправлено: ${it.updatedBy.name} (${ROLE_LABELS[it.updatedBy.role] ?? it.updatedBy.role}), ${formatDateTime(it.updatedAt)}`
-                                : `Изменено: ${formatDateTime(it.updatedAt)}`
+                                ? t('inventory.editedTooltipBy', { name: it.updatedBy.name, role: roleLabel(it.updatedBy.role), date: formatDateTime(it.updatedAt) })
+                                : t('inventory.editedTooltipAt', { date: formatDateTime(it.updatedAt) })
                             }>
-                              <Chip size="small" label="исправлено" color="warning" variant="outlined" sx={{ height: 20 }} />
+                              <Chip size="small" label={t('inventory.editedChip')} color="warning" variant="outlined" sx={{ height: 20 }} />
                             </Tooltip>
                           ) : null}
                         </Stack>
                       </TableCell>
-                      <TableCell>{unitLabels[it.unit]}</TableCell>
+                      <TableCell>{t(unitLabelKey(it.unit))}</TableCell>
                       {canEdit ? (
                         <TableCell align="right">
-                          <Tooltip title="Исправить количество">
+                          <Tooltip title={t('inventory.editDialogTooltip')}>
                             <IconButton size="small" onClick={() => openEdit(it)}><PencilSimpleIcon /></IconButton>
                           </Tooltip>
                         </TableCell>
@@ -257,36 +255,36 @@ export function InventorySessionDetailPage({ sessionId }: { sessionId: string })
           <Divider />
           <Box sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
             <Typography variant="body2" color="text.secondary">
-              Всего позиций: {s.items.length} · Суммарно (базовые единицы): {formatQty(String(totalUnits))}
+              {t('inventory.totalsLine', { items: s.items.length, sum: formatQty(String(totalUnits)) })}
             </Typography>
           </Box>
         </Card>
       </Stack>
 
       <Dialog open={edit.open} onClose={edit.saving ? undefined : closeEdit} fullWidth maxWidth="xs">
-        <DialogTitle>Исправить количество</DialogTitle>
+        <DialogTitle>{t('inventory.editDialogTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {edit.item ? (
               <Typography variant="body2" color="text.secondary">
-                {edit.item.name} · было <b>{formatQty(edit.item.quantity)}</b> {unitLabels[edit.item.unit]}
+                {t('inventory.editDialogWas', { name: edit.item.name, qty: formatQty(edit.item.quantity), unit: t(unitLabelKey(edit.item.unit)) })}
               </Typography>
             ) : null}
             <TextField
               autoFocus
-              label={`Новое количество${edit.item ? `, ${unitLabels[edit.item.unit]}` : ''}`}
+              label={edit.item ? t('inventory.editDialogNewLabel', { unit: t(unitLabelKey(edit.item.unit)) }) : t('inventory.columnQuantity')}
               value={edit.value}
               onChange={(e) => setEdit((s) => ({ ...s, value: e.target.value, error: null }))}
               inputProps={{ inputMode: 'decimal', autoComplete: 'off' }}
               error={Boolean(edit.error)}
-              helperText={edit.error ?? 'Изменение будет зафиксировано с вашим именем'}
+              helperText={edit.error ?? t('inventory.editDialogHint')}
             />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={closeEdit} disabled={edit.saving}>Отмена</Button>
+          <Button onClick={closeEdit} disabled={edit.saving}>{t('common.cancel')}</Button>
           <Button variant="contained" onClick={submitEdit} disabled={edit.saving}>
-            {edit.saving ? 'Сохранение…' : 'Сохранить'}
+            {edit.saving ? t('common.saving') : t('common.save')}
           </Button>
         </DialogActions>
       </Dialog>

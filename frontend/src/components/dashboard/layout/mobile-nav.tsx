@@ -15,6 +15,7 @@ import type { NavItemConfig } from '@/types/nav';
 import { paths } from '@/paths';
 import { isNavItemActive } from '@/lib/is-nav-item-active';
 import { useUser } from '@/hooks/use-user';
+import { useI18n } from '@/lib/i18n/provider';
 import { Logo } from '@/components/core/logo';
 
 import { getNavItems } from './config';
@@ -111,6 +112,8 @@ function isBranchActive(item: NavItemConfig, pathname: string): boolean {
 
 function NavItem({ item, pathname, nested = false }: { item: NavItemConfig; pathname: string; nested?: boolean }): React.JSX.Element {
   const { disabled, external, href, icon, matcher, title, items } = item;
+  const { t } = useI18n();
+  const label = title && title.startsWith('nav.') ? t(title as Parameters<typeof t>[0]) : (title ?? '');
   const hasChildren = Array.isArray(items) && items.length > 0;
   const active = isNavItemActive({ disabled, external, href, matcher, pathname });
   const branchActive = hasChildren && isBranchActive(item, pathname);
@@ -169,7 +172,7 @@ function NavItem({ item, pathname, nested = false }: { item: NavItemConfig; path
           </Box>
           <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
             <Typography component="span" sx={{ color: 'inherit', fontSize: '0.875rem', fontWeight: 500, lineHeight: '28px' }}>
-              {title}
+              {label}
             </Typography>
           </Box>
         </Box>
