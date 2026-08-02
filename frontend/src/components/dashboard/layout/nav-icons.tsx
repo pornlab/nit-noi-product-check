@@ -5,6 +5,7 @@ import { ClipboardTextIcon } from '@phosphor-icons/react/dist/ssr/ClipboardText'
 import { MapPinIcon } from '@phosphor-icons/react/dist/ssr/MapPin';
 import { PackageIcon } from '@phosphor-icons/react/dist/ssr/Package';
 import { TagIcon } from '@phosphor-icons/react/dist/ssr/Tag';
+import { TrashIcon } from '@phosphor-icons/react/dist/ssr/Trash';
 import { TrayArrowDownIcon } from '@phosphor-icons/react/dist/ssr/TrayArrowDown';
 import { TruckIcon } from '@phosphor-icons/react/dist/ssr/Truck';
 import { UserIcon } from '@phosphor-icons/react/dist/ssr/User';
@@ -17,6 +18,7 @@ export const navIcons = {
   'map-pin': MapPinIcon,
   package: PackageIcon,
   tag: TagIcon,
+  trash: TrashIcon,
   'tray-arrow-down': TrayArrowDownIcon,
   truck: TruckIcon,
   user: UserIcon,

@@ -3,6 +3,7 @@ export interface Dictionary {
     myZones: string;
     inventory: string;
     receivings: string;
+    disposals: string;
     products: string;
     organization: string;
     users: string;
@@ -10,6 +11,38 @@ export interface Dictionary {
     zones: string;
     suppliers: string;
     categories: string;
+  };
+  disposals: {
+    pageTitle: string;
+    addDisposal: string;
+    empty: string;
+    newTitle: string;
+    zoneLabel: string;
+    zoneSingle: string;         // e.g. "Zone: {name}"
+    zoneNoAccess: string;
+    productLabel: string;
+    productPlaceholder: string;
+    productNoOptions: string;
+    productEmptyZone: string;
+    quantityLabel: string;
+    saveButton: string;
+    createdNotify: string;
+    addItem: string;
+    itemsSection: string;
+    itemsEmpty: string;
+    columnSkuCount: string; // "{n} SKU"
+    columnAuthor: string;
+    groupToday: string;
+    groupYesterday: string;
+    filterDateFrom: string;
+    filterDateTo: string;
+    filterZoneAll: string;
+    filterRole: string;
+    filterRoleAll: string;
+    deleteButton: string;
+    deleteConfirmTitle: string;
+    deleteConfirmBody: string;
+    deletedNotify: string;
   };
   header: { search: string; notifications: string; language: string };
   userMenu: { myProfile: string; signOut: string };
@@ -166,6 +199,7 @@ export interface Dictionary {
 
     priceTooltipLastReceived: string; // "Last receiving: {date}"
     priceTooltipPerUnit: string;      // "{price} {sym} per {unit}"
+    stockTotalLabel: string;          // "Total"
 
     // Dialog
     sectionMain: string;
@@ -294,6 +328,7 @@ export const en: Dictionary = {
     myZones: 'My zones',
     inventory: 'Inventory',
     receivings: 'Receivings',
+    disposals: 'Disposals',
     products: 'Products',
     organization: 'Organization',
     users: 'Users',
@@ -436,6 +471,7 @@ export const en: Dictionary = {
 
     priceTooltipLastReceived: 'Last receiving: {date}',
     priceTooltipPerUnit: '{price} {sym} per {unit}',
+    stockTotalLabel: 'Total',
 
     sectionMain: 'General',
     sectionIdentifiers: 'Identifiers',
@@ -540,6 +576,39 @@ export const en: Dictionary = {
     attentionSuffix: '{n} need attention',
 
     withoutCategory: 'No category',
+  },
+
+  disposals: {
+    pageTitle: 'Disposals',
+    addDisposal: 'Create disposal',
+    empty: 'No disposals yet. Click «Create disposal».',
+    newTitle: 'New disposal',
+    zoneLabel: 'Zone',
+    zoneSingle: 'Zone: {name}',
+    zoneNoAccess: 'No zones available for your role.',
+    productLabel: 'Product',
+    productPlaceholder: 'Search…',
+    productNoOptions: 'Nothing found',
+    productEmptyZone: 'Choose a zone first',
+    quantityLabel: 'Quantity',
+    saveButton: 'Create disposal',
+    createdNotify: 'Disposal created',
+    addItem: 'Add product',
+    itemsSection: 'Products',
+    itemsEmpty: 'No products yet. Click «Add product».',
+    columnSkuCount: '{n} SKU',
+    columnAuthor: 'Author',
+    groupToday: 'Today',
+    groupYesterday: 'Yesterday',
+    filterDateFrom: 'From',
+    filterDateTo: 'To',
+    filterZoneAll: 'All zones',
+    filterRole: 'Author role',
+    filterRoleAll: 'Any role',
+    deleteButton: 'Delete',
+    deleteConfirmTitle: 'Delete disposal',
+    deleteConfirmBody: 'Delete this disposal? This action cannot be undone.',
+    deletedNotify: 'Disposal deleted',
   },
 
   units: {

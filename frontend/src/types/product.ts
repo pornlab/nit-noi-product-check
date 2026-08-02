@@ -19,6 +19,7 @@ export interface ProductStockZoneEntry {
   /** null, если в зоне ещё не было инвентаризации. */
   completedAt: string | null;
   receivedAfter: string;
+  disposedAfter: string;
 }
 
 export interface Product {

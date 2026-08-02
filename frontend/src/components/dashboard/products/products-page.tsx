@@ -429,8 +429,9 @@ function currencySymbol(code: string): string {
 function stockSeverity(p: Product): 'unknown' | 'critical' | 'low' | 'ok' {
   const inv = p.lastQuantity === null ? null : Number(p.lastQuantity);
   const received = (p.lastStock ?? []).reduce((s, e) => s + (Number(e.receivedAfter) || 0), 0);
-  if (inv === null && received === 0) return 'unknown';
-  const current = (inv ?? 0) + received;
+  const disposed = (p.lastStock ?? []).reduce((s, e) => s + (Number(e.disposedAfter) || 0), 0);
+  if (inv === null && received === 0 && disposed === 0) return 'unknown';
+  const current = (inv ?? 0) + received - disposed;
 
   const min = p.minQuantity === null ? null : Number(p.minQuantity);
   const optimal = p.optimalQuantity === null ? null : Number(p.optimalQuantity);
@@ -498,22 +499,45 @@ function ProductStockCell({
   at: string | null;
   stock: import('@/types/product').ProductStockZoneEntry[];
 }): React.JSX.Element {
+  const { t } = useI18n();
   const totalReceivedAfter = stock.reduce((s, e) => s + (Number(e.receivedAfter) || 0), 0);
+  const totalDisposedAfter = stock.reduce((s, e) => s + (Number(e.disposedAfter) || 0), 0);
 
-  // Полный «нулевой» кейс: ни инвентаризации, ни приходов.
-  if (qty === null && totalReceivedAfter === 0) {
+  // Полный «нулевой» кейс: ни инвентаризации, ни приходов, ни утилизаций.
+  if (qty === null && totalReceivedAfter === 0 && totalDisposedAfter === 0) {
     return <Typography component="span" color="text.secondary">—</Typography>;
   }
 
   const tooltipContent = (
     <Box>
+      <Box sx={{ whiteSpace: 'nowrap', fontWeight: 600, mb: 0.5 }}>
+        {t('products.stockTotalLabel')}:{' '}
+        {totalDisposedAfter > 0 ? (
+          <Box component="span" sx={{ color: 'error.light', mr: 0.5 }}>
+            (−{formatQty(String(totalDisposedAfter))})
+          </Box>
+        ) : null}
+        {qty === null ? '—' : formatQty(qty)}
+        {totalReceivedAfter > 0 ? (
+          <Box component="span" sx={{ color: 'success.light', ml: 0.5 }}>
+            (+{formatQty(String(totalReceivedAfter))})
+          </Box>
+        ) : null}
+      </Box>
       {stock.map((s) => {
         const after = Number(s.receivedAfter) || 0;
+        const disposed = Number(s.disposedAfter) || 0;
         const hasInv = s.completedAt !== null && s.quantity !== null;
         return (
           <Box key={s.zoneId} sx={{ whiteSpace: 'nowrap' }}>
             {hasInv ? `${formatDateTime(s.completedAt!)} ` : ''}
-            {s.zoneName}: {hasInv ? formatQty(s.quantity!) : '—'}
+            {s.zoneName}:{' '}
+            {disposed > 0 ? (
+              <Box component="span" sx={{ color: 'error.light', mr: 0.5 }}>
+                (−{formatQty(String(disposed))})
+              </Box>
+            ) : null}
+            {hasInv ? formatQty(s.quantity!) : '—'}
             {after > 0 ? (
               <Box component="span" sx={{ color: 'success.light', ml: 0.5 }}>
                 (+{formatQty(String(after))})
@@ -527,10 +551,27 @@ function ProductStockCell({
 
   return (
     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
-      <Typography component="span" sx={{ whiteSpace: 'nowrap' }}>
-        {qty === null ? <Box component="span" sx={{ color: 'text.secondary' }}>—</Box> : formatQty(qty)}
+      <Typography
+        component="span"
+        sx={{
+          display: 'inline-flex',
+          flexWrap: 'wrap',
+          justifyContent: 'flex-end',
+          alignItems: 'baseline',
+          columnGap: 0.5,
+          rowGap: 0.25,
+        }}
+      >
+        {totalDisposedAfter > 0 ? (
+          <Box component="span" sx={{ color: 'error.main', whiteSpace: 'nowrap' }}>
+            (−{formatQty(String(totalDisposedAfter))})
+          </Box>
+        ) : null}
+        <Box component="span" sx={{ whiteSpace: 'nowrap', color: qty === null ? 'text.secondary' : 'inherit' }}>
+          {qty === null ? '—' : formatQty(qty)}
+        </Box>
         {totalReceivedAfter > 0 ? (
-          <Box component="span" sx={{ color: 'success.main', ml: 0.5 }}>
+          <Box component="span" sx={{ color: 'success.main', whiteSpace: 'nowrap' }}>
             (+{formatQty(String(totalReceivedAfter))})
           </Box>
         ) : null}

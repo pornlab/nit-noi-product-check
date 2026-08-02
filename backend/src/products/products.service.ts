@@ -1,10 +1,13 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, Product, Unit } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import type { AuthUser } from '../auth/auth-user';
 import { isPrismaUniqueConstraintError, normalizeName } from '../common/normalize-name';
 
 export interface ProductPublicCategory {
@@ -16,16 +19,20 @@ export interface ProductPublicCategory {
 export interface ProductStockZoneEntry {
   zoneId: string;
   zoneName: string;
-  /** null, если в этой зоне инвентаризации ещё не было (но приходы уже есть). */
+  /** null, если в этой зоне инвентаризации ещё не было (но есть приходы/утилизации). */
   quantity: string | null;
   /** null, если в этой зоне инвентаризации ещё не было. */
   completedAt: string | null;
   /**
    * Сумма приходов (receiving allocations) в эту зону, датированных ПОСЛЕ completedAt.
    * Если completedAt = null — сумма ВСЕХ приходов в эту зону.
-   * Нужен, чтобы показывать «M (+N)» на странице товаров.
    */
   receivedAfter: string;
+  /**
+   * Сумма утилизаций (disposal items) в эту зону, созданных СТРОГО ПОСЛЕ completedAt.
+   * Если completedAt = null — сумма ВСЕХ утилизаций в эту зону.
+   */
+  disposedAfter: string;
 }
 
 export interface ProductPublicZone {
@@ -128,7 +135,7 @@ export class ProductsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(
-    orgId: string,
+    user: AuthUser,
     filter: {
       search?: string;
       categoryId?: string;
@@ -139,6 +146,20 @@ export class ProductsService {
       isActive?: boolean;
     },
   ): Promise<ProductPublic[]> {
+    const orgId = user.organizationId;
+
+    // Employee-режим: обязательно zoneId, и только в пределах своих UserZone.
+    if (user.role === 'employee') {
+      if (!filter.zoneId) {
+        throw new BadRequestException('Для сотрудника требуется указать зону');
+      }
+      const assignment = await this.prisma.userZone.findFirst({
+        where: { userId: user.id, zoneId: filter.zoneId, zone: { organizationId: orgId } },
+        select: { id: true },
+      });
+      if (!assignment) throw new ForbiddenException('Нет доступа к зоне');
+    }
+
     const where: Prisma.ProductWhereInput = { organizationId: orgId };
 
     if (filter.categoryId === 'none') {
@@ -251,6 +272,7 @@ export class ProductsService {
         quantity: Prisma.Decimal | null;
         completedAt: Date | null;
         receivedAfter: Prisma.Decimal;
+        disposedAfter: Prisma.Decimal;
       }>
     >`
       WITH inv AS (
@@ -272,10 +294,19 @@ export class ProductsService {
         WHERE r."organizationId" = ${orgId}
           AND ri."productId" IN (${Prisma.join(productIds)})
       ),
+      disp_zones AS (
+        SELECT DISTINCT di."productId", d."zoneId"
+        FROM "disposal_items" di
+        JOIN "disposals" d ON d."id" = di."disposalId"
+        WHERE d."organizationId" = ${orgId}
+          AND di."productId" IN (${Prisma.join(productIds)})
+      ),
       pairs AS (
         SELECT "productId", "zoneId" FROM inv
         UNION
         SELECT "productId", "zoneId" FROM recv_zones
+        UNION
+        SELECT "productId", "zoneId" FROM disp_zones
       )
       SELECT
         p."productId",
@@ -291,7 +322,16 @@ export class ProductsService {
           WHERE ra."zoneId" = p."zoneId"
             AND r."organizationId" = ${orgId}
             AND (inv."completedAt" IS NULL OR r."receivedAt" > (inv."completedAt")::date)
-        ), 0)                                                                AS "receivedAfter"
+        ), 0)                                                                AS "receivedAfter",
+        COALESCE((
+          SELECT SUM(di."quantity")
+          FROM "disposal_items" di
+          JOIN "disposals" d ON d."id" = di."disposalId"
+          WHERE di."productId" = p."productId"
+            AND d."zoneId" = p."zoneId"
+            AND d."organizationId" = ${orgId}
+            AND (inv."completedAt" IS NULL OR d."createdAt" > inv."completedAt")
+        ), 0)                                                                AS "disposedAfter"
       FROM pairs p
       JOIN "zones" z ON z.id = p."zoneId"
       LEFT JOIN inv ON inv."productId" = p."productId" AND inv."zoneId" = p."zoneId"
@@ -308,6 +348,7 @@ export class ProductsService {
         quantity: r.quantity === null ? null : r.quantity.toString(),
         completedAt: r.completedAt === null ? null : r.completedAt.toISOString(),
         receivedAfter: new Prisma.Decimal(r.receivedAfter).toString(),
+        disposedAfter: new Prisma.Decimal(r.disposedAfter).toString(),
       });
       grouped.set(r.productId, arr);
     }
