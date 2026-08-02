@@ -19,5 +19,7 @@ export const paths = {
     receivingsNew: '/dashboard/receivings/new',
     receiving: (id: string) => `/dashboard/receivings/${id}`,
     receivingEdit: (id: string) => `/dashboard/receivings/${id}/edit`,
+    disposals: '/dashboard/disposals',
+    disposalsNew: '/dashboard/disposals/new',
   },
 } as const;

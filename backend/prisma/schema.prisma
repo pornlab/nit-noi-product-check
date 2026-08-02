@@ -49,6 +49,7 @@ model Organization {
   inventorySessions  InventorySession[]
   productZones       ProductZone[]
   receivings         Receiving[]
+  disposals          Disposal[]
 
   @@map("organizations")
 }
@@ -98,6 +99,7 @@ model Product {
   inventoryItems InventoryItem[]
   zones          ProductZone[]
   receivingItems ReceivingItem[]
+  disposalItems  DisposalItem[]
 
   @@unique([organizationId, normalizedName])
   @@unique([organizationId, normalizedSku])
@@ -211,6 +213,7 @@ model User {
   inventorySessions    InventorySession[]
   editedInventoryItems InventoryItem[]    @relation("InventoryItemUpdatedBy")
   createdReceivings    Receiving[]
+  createdDisposals     Disposal[]
 
   @@index([organizationId])
   @@index([positionId])
@@ -250,6 +253,7 @@ model Zone {
   inventorySessions    InventorySession[]
   products             ProductZone[]
   receivingAllocations ReceivingAllocation[]
+  disposals            Disposal[]
 
   @@unique([organizationId, normalizedName])
   @@index([organizationId])
@@ -309,6 +313,39 @@ model ReceivingAllocation {
   @@unique([receivingItemId, zoneId])
   @@index([zoneId])
   @@map("receiving_allocations")
+}
+
+model Disposal {
+  id             String   @id @default(cuid())
+  organizationId String
+  zoneId         String
+  createdById    String
+  createdAt      DateTime @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  zone         Zone            @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+  createdBy    User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  items        DisposalItem[]
+
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
+  @@index([zoneId])
+  @@index([createdById])
+  @@map("disposals")
+}
+
+model DisposalItem {
+  id         String  @id @default(cuid())
+  disposalId String
+  productId  String
+  quantity   Decimal @db.Decimal(12, 3)
+
+  disposal Disposal @relation(fields: [disposalId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@unique([disposalId, productId])
+  @@index([productId])
+  @@map("disposal_items")
 }
 
 model UserZone {

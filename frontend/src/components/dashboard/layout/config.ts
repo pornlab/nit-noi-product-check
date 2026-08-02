@@ -10,11 +10,13 @@ export function getNavItems(role: UserRole | undefined): NavItemConfig[] {
     return [
       { key: 'my-zones', title: 'nav.myZones', href: paths.dashboard.myZones, icon: 'map-pin' },
       { key: 'inventory', title: 'nav.inventory', href: paths.dashboard.inventory, icon: 'clipboard' },
+      { key: 'disposals', title: 'nav.disposals', href: paths.dashboard.disposals, icon: 'trash' },
     ];
   }
   return [
     { key: 'inventory', title: 'nav.inventory', href: paths.dashboard.inventory, icon: 'clipboard' },
     { key: 'receivings', title: 'nav.receivings', href: paths.dashboard.receivings, icon: 'tray-arrow-down' },
+    { key: 'disposals', title: 'nav.disposals', href: paths.dashboard.disposals, icon: 'trash' },
     { key: 'products', title: 'nav.products', href: paths.dashboard.products, icon: 'package' },
     {
       key: 'organization',
