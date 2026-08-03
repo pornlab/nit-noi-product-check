@@ -151,6 +151,7 @@ export interface Dictionary {
     noPositions: string;
     errorFillAll: string;
     errorCheckValues: string;
+    thankYou: string;
   };
 
   products: {
@@ -200,6 +201,10 @@ export interface Dictionary {
     priceTooltipLastReceived: string; // "Last receiving: {date}"
     priceTooltipPerUnit: string;      // "{price} {sym} per {unit}"
     stockTotalLabel: string;          // "Total"
+    filterStockLabel: string;
+    filterStockAll: string;
+    filterStockBelowOptimal: string;
+    filterStockBelowMin: string;
 
     // Dialog
     sectionMain: string;
@@ -423,6 +428,7 @@ export const en: Dictionary = {
     noPositions: 'No items',
     errorFillAll: 'Fill in every item',
     errorCheckValues: 'Please check entered values',
+    thankYou: 'Inventory completed. Thanks for the work!',
   },
 
   products: {
@@ -472,6 +478,10 @@ export const en: Dictionary = {
     priceTooltipLastReceived: 'Last receiving: {date}',
     priceTooltipPerUnit: '{price} {sym} per {unit}',
     stockTotalLabel: 'Total',
+    filterStockLabel: 'Stock',
+    filterStockAll: 'All',
+    filterStockBelowOptimal: 'Below optimal',
+    filterStockBelowMin: 'Below minimum',
 
     sectionMain: 'General',
     sectionIdentifiers: 'Identifiers',

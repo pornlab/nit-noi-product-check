@@ -100,6 +100,7 @@ export const th: Dictionary = {
     noPositions: 'ไม่มีรายการ',
     errorFillAll: 'กรุณากรอกทุกรายการ',
     errorCheckValues: 'กรุณาตรวจสอบค่าที่กรอก',
+    thankYou: 'ตรวจนับเสร็จแล้ว ขอบคุณสำหรับการทำงาน!',
   },
 
   products: {
@@ -149,6 +150,10 @@ export const th: Dictionary = {
     priceTooltipLastReceived: 'รับล่าสุด: {date}',
     priceTooltipPerUnit: '{price} {sym} ต่อ {unit}',
     stockTotalLabel: 'รวม',
+    filterStockLabel: 'สต๊อก',
+    filterStockAll: 'ทั้งหมด',
+    filterStockBelowOptimal: 'ต่ำกว่าเหมาะสม',
+    filterStockBelowMin: 'ต่ำกว่าขั้นต่ำ',
 
     sectionMain: 'ข้อมูลทั่วไป',
     sectionIdentifiers: 'รหัส',

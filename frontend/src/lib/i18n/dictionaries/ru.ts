@@ -100,6 +100,7 @@ export const ru: Dictionary = {
     noPositions: 'Нет позиций',
     errorFillAll: 'Заполните все позиции',
     errorCheckValues: 'Проверьте введённые значения',
+    thankYou: 'Инвентаризация завершена. Спасибо за работу!',
   },
 
   products: {
@@ -149,6 +150,10 @@ export const ru: Dictionary = {
     priceTooltipLastReceived: 'Последнее поступление: {date}',
     priceTooltipPerUnit: '{price} {sym} за {unit}',
     stockTotalLabel: 'Итого',
+    filterStockLabel: 'Остаток',
+    filterStockAll: 'Все',
+    filterStockBelowOptimal: 'Меньше оптимального',
+    filterStockBelowMin: 'Меньше критичного',
 
     sectionMain: 'Основное',
     sectionIdentifiers: 'Идентификаторы',

@@ -14,6 +14,7 @@ import Typography from '@mui/material/Typography';
 
 import type { InventoryZoneSummary } from '@/types/inventory';
 import { inventoryApi } from '@/lib/api/inventory';
+import { useNotify } from '@/lib/api/notify';
 import { useI18n } from '@/lib/i18n/provider';
 import { paths } from '@/paths';
 
@@ -39,9 +40,20 @@ function formatDMY(iso: string): string {
 
 export function InventoryZonesPage(): React.JSX.Element {
   const { t } = useI18n();
+  const { notify, view: snack } = useNotify();
   const [state, setState] = React.useState<{ loading: boolean; error: string | null; items: InventoryZoneSummary[] }>({
     loading: true, error: null, items: [],
   });
+
+  // Flash-сообщение после завершения инвентаризации (см. inventory-session-page).
+  React.useEffect(() => {
+    if (globalThis.window === undefined) return;
+    const msg = globalThis.sessionStorage.getItem('inventory-thanks');
+    if (msg) {
+      globalThis.sessionStorage.removeItem('inventory-thanks');
+      notify(msg);
+    }
+  }, [notify]);
 
   const formatLastCompleted = React.useCallback((iso: string | null): { text: string; today: boolean } => {
     if (!iso) return { text: t('inventory.lastNever'), today: false };
@@ -118,6 +130,7 @@ export function InventoryZonesPage(): React.JSX.Element {
           })}
         </Grid>
       )}
+      {snack}
     </Stack>
   );
 }
