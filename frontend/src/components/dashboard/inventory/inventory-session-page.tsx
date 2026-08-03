@@ -245,9 +245,10 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
     // очистить черновик
     if (globalThis.window !== undefined) {
       globalThis.localStorage.removeItem(draftKey);
+      // Flash-сообщение — покажется на странице /dashboard/inventory после редиректа.
+      globalThis.sessionStorage.setItem('inventory-thanks', t('inventory.thankYou'));
     }
-    notify(t('inventory.completedForZoneNotify', { zone: state.data.zone.name }));
-    await load();
+    router.push(paths.dashboard.inventory);
   };
 
   const handlePrimary = (): void => {

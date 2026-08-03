@@ -44,6 +44,7 @@ import { ProductDialog } from './product-dialog';
 
 type ActiveFilter = 'all' | 'active' | 'inactive';
 type BoolFilter = 'all' | 'yes' | 'no';
+type StockFilter = 'all' | 'below-optimal' | 'below-min';
 const UNIT_VALUES: Unit[] = ['PIECE', 'GRAM', 'KILOGRAM', 'MILLILITER', 'LITER', 'PACK', 'BOX', 'BOTTLE', 'CAN', 'BAG'];
 
 export function ProductsPage(): React.JSX.Element {
@@ -61,6 +62,7 @@ export function ProductsPage(): React.JSX.Element {
   const [activeFilter, setActiveFilter] = React.useState<ActiveFilter>('all');
   const [trackedFilter, setTrackedFilter] = React.useState<BoolFilter>('all');
   const [purchFilter, setPurchFilter] = React.useState<BoolFilter>('all');
+  const [stockFilter, setStockFilter] = React.useState<StockFilter>('all');
 
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [zones, setZones] = React.useState<Zone[]>([]);
@@ -154,6 +156,14 @@ export function ProductsPage(): React.JSX.Element {
     }
   };
 
+  const displayedItems = React.useMemo(() => {
+    if (stockFilter === 'all') return state.items;
+    return state.items.filter((p) => {
+      const sev = stockSeverity(p);
+      return stockFilter === 'below-min' ? sev === 'critical' : sev === 'critical' || sev === 'low';
+    });
+  }, [state.items, stockFilter]);
+
   return (
     <>
       <Stack spacing={2}>
@@ -238,6 +248,19 @@ export function ProductsPage(): React.JSX.Element {
               <MenuItem value="no">{t('products.filterInventoryNo')}</MenuItem>
             </Select>
           </FormControl>
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>{t('products.filterStockLabel')}</InputLabel>
+            <Select
+              label={t('products.filterStockLabel')}
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value as StockFilter)}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+            >
+              <MenuItem value="all">{t('products.filterStockAll')}</MenuItem>
+              <MenuItem value="below-optimal">{t('products.filterStockBelowOptimal')}</MenuItem>
+              <MenuItem value="below-min">{t('products.filterStockBelowMin')}</MenuItem>
+            </Select>
+          </FormControl>
           <FormControl size="small" sx={{ minWidth: 180 }}>
             <InputLabel>{t('products.filterPurchaseLabel')}</InputLabel>
             <Select
@@ -264,7 +287,7 @@ export function ProductsPage(): React.JSX.Element {
                 {state.error}
               </Alert>
             </Box>
-          ) : state.items.length === 0 ? (
+          ) : displayedItems.length === 0 ? (
             <Box sx={{ p: 3 }}>
               <Typography variant="body2" color="text.secondary">{t('products.empty')}</Typography>
             </Box>
@@ -287,7 +310,7 @@ export function ProductsPage(): React.JSX.Element {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {state.items.map((p) => {
+                  {displayedItems.map((p) => {
                     const severity = stockSeverity(p);
                     return (
                     <TableRow
@@ -486,7 +509,9 @@ function ProductPriceCell({
     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="flex-end">
       <Typography component="span" sx={{ whiteSpace: 'nowrap' }}>{priceStr} {sym}</Typography>
       <Tooltip title={tooltipContent} enterTouchDelay={0} arrow>
-        <InfoIcon size={14} color="var(--mui-palette-text-secondary, #8B909B)" style={{ cursor: 'help' }} />
+        <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0, alignItems: 'center' }}>
+          <InfoIcon size={14} color="var(--mui-palette-text-secondary, #8B909B)" style={{ cursor: 'help' }} />
+        </Box>
       </Tooltip>
     </Stack>
   );
@@ -577,7 +602,9 @@ function ProductStockCell({
         ) : null}
       </Typography>
       <Tooltip title={tooltipContent} enterTouchDelay={0} arrow>
-        <InfoIcon size={14} color="var(--mui-palette-text-secondary, #8B909B)" style={{ cursor: 'help' }} />
+        <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0, alignItems: 'center' }}>
+          <InfoIcon size={14} color="var(--mui-palette-text-secondary, #8B909B)" style={{ cursor: 'help' }} />
+        </Box>
       </Tooltip>
     </Stack>
   );
