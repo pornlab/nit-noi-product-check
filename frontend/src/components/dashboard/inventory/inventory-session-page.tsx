@@ -26,7 +26,7 @@ import type { ZoneInventoryProduct, ZoneInventoryResponse } from '@/types/invent
 import { inventoryApi } from '@/lib/api/inventory';
 import { useNotify } from '@/lib/api/notify';
 import { useI18n } from '@/lib/i18n/provider';
-import { unitLabels } from '@/types/unit';
+import { unitLabelKey } from '@/lib/i18n/unit';
 import { paths } from '@/paths';
 import { useUser } from '@/hooks/use-user';
 
@@ -507,7 +507,7 @@ export function InventorySessionPage({ zoneId }: { zoneId: string }): React.JSX.
                                 {p.name}
                               </Typography>
                               <Typography sx={{ fontSize: 12, color: C_MUTED, mt: 0.25 }}>
-                                {unitLabels[p.unit]}
+                                {t(unitLabelKey(p.unit))}
                               </Typography>
                             </Box>
 

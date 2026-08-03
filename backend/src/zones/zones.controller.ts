@@ -32,7 +32,7 @@ export class ZonesController {
   constructor(private readonly service: ZonesService) {}
 
   @Get()
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   list(@CurrentUser() user: AuthUser, @Query() q: ListZonesDto) {
     return this.service.list(user, {
       isActive: q.isActive === undefined ? undefined : q.isActive === 'true',
@@ -41,7 +41,7 @@ export class ZonesController {
   }
 
   @Get(':id')
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   get(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.service.get(user, id);
   }

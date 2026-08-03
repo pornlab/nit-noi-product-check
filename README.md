@@ -221,6 +221,74 @@ npm run frontend:dev
 
 Без токена или с недействительным токеном — `401 Unauthorized`.
 
+## Collector API (внешние интеграции)
+
+Read-only API для внешних систем (аналитика, коллекторы, AI-помощник),
+которым нужно затянуть данные warehouse — инвентаризации, поступления,
+утилизации, справочники. Отдельный от юзерского JWT, работает по API-key.
+
+**Базовый URL:** `http://localhost:4000/api/v1/collector`
+
+### Аутентификация
+
+Заголовок `X-API-Key: <ключ>`. Ключ и id организации задаются в env
+backend'а — один ключ = одна организация. Если хотя бы одно значение
+пустое, endpoint отвечает `401 Unauthorized: Collector API disabled`
+(вкл./выкл. фичи).
+
+```env
+# backend/.env
+COLLECTOR_API_KEY=<длинная случайная строка, например `openssl rand -hex 32`>
+COLLECTOR_ORG_ID=<uuid организации из таблицы organizations>
+```
+
+Сравнение ключей — constant-time (защита от time-attack).
+
+### Endpoints
+
+Все `GET`, отвечают JSON-массивом. Для транзакционных таблиц —
+сортировка по хронологии **ASC** (удобно для инкрементального pull),
+фильтры по датам **включительные**, формат `YYYY-MM-DD`, интерпретация
+по UTC-дню. `limit` — 500 по умолчанию, максимум 1000.
+
+| Endpoint | Параметры | Что возвращает |
+| -------- | --------- | -------------- |
+| `GET /zones`               | —                                     | Все зоны организации: `id`, `name`, `description`, `isActive`, `createdAt`, `updatedAt`. |
+| `GET /suppliers`           | —                                     | Все поставщики: контакты, `isActive`, timestamps. |
+| `GET /products`            | —                                     | Все товары: `category`, `baseUnit`, `sku`, `barcode`, `minQuantity`, `optimalQuantity`, `zoneIds[]`, флаги. |
+| `GET /inventory-sessions`  | `from`, `to`, `zoneId`, `limit`       | Завершённые инвентаризации со всеми позициями: qty, product, updatedBy (для правок админа). |
+| `GET /receivings`          | `from`, `to`, `supplierId`, `limit`   | Поступления с items (qty, cost) и allocations (по зонам), `currency`, `deliveryCost`, `sequenceNumber`. |
+| `GET /disposals`           | `from`, `to`, `zoneId`, `limit`       | Утилизации со списком позиций. |
+
+### Пример вызова
+
+```bash
+KEY=<your-collector-api-key>
+
+# Все утилизации за июль 2026
+curl -H "X-API-Key: $KEY" \
+  "http://localhost:4000/api/v1/collector/disposals?from=2026-07-01&to=2026-07-31"
+
+# Справочник товаров
+curl -H "X-API-Key: $KEY" \
+  "http://localhost:4000/api/v1/collector/products"
+```
+
+### Инкрементальный pull
+
+Клиент хранит `lastPulledAt`. При следующем заходе передаёт `from=<lastPulledAt>`,
+получает всё новое (сортировка ASC гарантирует порядок), в конце запоминает
+свежайший `receivedAt` / `completedAt` / `createdAt` из ответа. `id` записей
+стабильные (cuid), можно использовать как ключ идемпотентности.
+
+### Дизайн-правила API
+
+- **Плоский JSON, никакой бизнес-логики.** Только данные, агрегации — на стороне потребителя.
+- **Схема стабильна.** Изменения — добавлением полей; удаление/переименование
+  требует новой версии (`/api/v2/collector/...`).
+- **Timestamps — ISO 8601 UTC.**
+- **Decimals — строки** (`quantity: "12.500"`), чтобы не терялась точность в JSON-парсерах.
+
 ## Хранение JWT на фронтенде
 
 Для MVP токен сохраняется в `localStorage` (ключ `warehouse-auth-token`).
@@ -284,6 +352,12 @@ npm run dev
   дате (admin — любая, manager — не раньше вчерашней); валидация: `sum(allocations) ==
   quantity`, зоны только из `product.zones`, товары — активные и `isPurchasable`;
   `admin` может `PATCH` / `DELETE`.
+- `disposals` — `Disposal` + `DisposalItem`, списание с зоны (порча, брак, бой).
+  Создавать может любая роль в пределах доступных зон, удалять — только admin
+  (кебаб-меню в списке). Список группируется по дням, сводка со стоимостью
+  считается по последним ценам поступлений (`?` / `>` префиксы при неизвестных ценах).
+- `collector` — read-only API-key endpoints для внешних систем (см. раздел
+  «Collector API»). Отдельный `ApiKeyGuard`, полностью изолирован от юзерского JWT.
 
 **Frontend (Next 15 App Router):**
 
@@ -298,5 +372,8 @@ npm run dev
 - `/dashboard/receivings/new` — создание поступления;
 - `/dashboard/receivings/[id]` — просмотр + кнопки edit / delete (admin only);
 - `/dashboard/receivings/[id]/edit` — редактирование (admin only);
+- `/dashboard/disposals` — список утилизаций с группировкой по дням, фильтрами
+  (даты, зона, роль автора для admin), кебаб-меню «Удалить» (admin only);
+- `/dashboard/disposals/new` — создание утилизации (одна зона → множество позиций);
 - `/dashboard/organization` и её подпункты — справочники (users / positions /
   zones / suppliers / categories).

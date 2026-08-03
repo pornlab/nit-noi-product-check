@@ -28,6 +28,6 @@ export class ListDisposalsQueryDto {
   /** Роль автора. Учитывается только для admin. */
   @IsOptional()
   @Transform(trimOrUndef)
-  @IsIn(['admin', 'manager', 'employee'], { message: 'Некорректная роль' })
-  role?: 'admin' | 'manager' | 'employee';
+  @IsIn(['admin', 'manager', 'employee', 'analytics'], { message: 'Некорректная роль' })
+  role?: 'admin' | 'manager' | 'employee' | 'analytics';
 }

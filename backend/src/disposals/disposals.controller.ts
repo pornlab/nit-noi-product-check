@@ -14,13 +14,13 @@ export class DisposalsController {
   constructor(private readonly service: DisposalsService) {}
 
   @Get()
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   list(@CurrentUser() user: AuthUser, @Query() q: ListDisposalsQueryDto) {
     return this.service.list(user, q);
   }
 
   @Get(':id')
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   get(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.get(user, id);
   }

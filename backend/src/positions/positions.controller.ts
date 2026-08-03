@@ -13,7 +13,7 @@ export class PositionsController {
   constructor(private readonly service: PositionsService) {}
 
   @Get()
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'analytics')
   list(@CurrentUser() user: AuthUser, @Query() q: ListPositionsDto) {
     return this.service.list(user.organizationId, {
       isActive: q.isActive === undefined ? undefined : q.isActive === 'true',
@@ -22,7 +22,7 @@ export class PositionsController {
   }
 
   @Get(':id')
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'analytics')
   get(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.service.get(user.organizationId, id);
   }

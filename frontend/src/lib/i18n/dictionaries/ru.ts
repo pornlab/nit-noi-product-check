@@ -26,7 +26,7 @@ export const ru: Dictionary = {
     notSelected: 'Не выбран', filter: 'Фильтр', error: 'Ошибка',
   },
 
-  roles: { admin: 'Администратор', manager: 'Менеджер', employee: 'Сотрудник' },
+  roles: { admin: 'Администратор', manager: 'Менеджер', employee: 'Сотрудник', analytics: 'Аналитика' },
 
   inventory: {
     pageTitle: 'Инвентаризация',

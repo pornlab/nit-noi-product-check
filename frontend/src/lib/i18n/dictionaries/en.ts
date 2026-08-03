@@ -77,7 +77,7 @@ export interface Dictionary {
     error: string;
   };
 
-  roles: { admin: string; manager: string; employee: string };
+  roles: { admin: string; manager: string; employee: string; analytics: string };
 
   inventory: {
     pageTitle: string;
@@ -354,7 +354,7 @@ export const en: Dictionary = {
     notSelected: 'Not selected', filter: 'Filter', error: 'Error',
   },
 
-  roles: { admin: 'Administrator', manager: 'Manager', employee: 'Employee' },
+  roles: { admin: 'Administrator', manager: 'Manager', employee: 'Employee', analytics: 'Analytics' },
 
   inventory: {
     pageTitle: 'Inventory',
