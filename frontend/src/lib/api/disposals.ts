@@ -5,7 +5,7 @@ export interface DisposalListFilter {
   dateFrom?: string;
   dateTo?: string;
   zoneId?: string;
-  role?: 'admin' | 'manager' | 'employee';
+  role?: 'admin' | 'manager' | 'employee' | 'analytics';
 }
 
 function qs(params: Record<string, string | undefined>): string {

@@ -42,8 +42,8 @@ import { useNotify } from '@/lib/api/notify';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { useUser } from '@/hooks/use-user';
 
-const roleLabels: Record<UserRole, string> = { admin: 'Администратор', manager: 'Менеджер', employee: 'Сотрудник' };
-const roleOptions: UserRole[] = ['admin', 'manager', 'employee'];
+const roleLabels: Record<UserRole, string> = { admin: 'Администратор', manager: 'Менеджер', employee: 'Сотрудник', analytics: 'Аналитика' };
+const roleOptions: UserRole[] = ['admin', 'manager', 'employee', 'analytics'];
 
 export function UsersPage(): React.JSX.Element {
   const { user: current } = useUser();

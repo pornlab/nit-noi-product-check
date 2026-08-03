@@ -26,7 +26,7 @@ export const th: Dictionary = {
     notSelected: 'ยังไม่ได้เลือก', filter: 'ตัวกรอง', error: 'ข้อผิดพลาด',
   },
 
-  roles: { admin: 'ผู้ดูแล', manager: 'ผู้จัดการ', employee: 'พนักงาน' },
+  roles: { admin: 'ผู้ดูแล', manager: 'ผู้จัดการ', employee: 'พนักงาน', analytics: 'อนาลิสต์' },
 
   inventory: {
     pageTitle: 'ตรวจนับสินค้า',

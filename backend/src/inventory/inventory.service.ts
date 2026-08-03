@@ -28,7 +28,7 @@ export interface InventorySessionSummary {
   id: string;
   sequenceNumber: number;
   completedAt: string;
-  createdBy: { id: string; name: string; role: 'admin' | 'manager' | 'employee' };
+  createdBy: { id: string; name: string; role: 'admin' | 'manager' | 'employee' | 'analytics' };
 }
 
 export interface InventorySessionDetailItem {
@@ -39,7 +39,7 @@ export interface InventorySessionDetailItem {
   category: { id: string; name: string } | null;
   quantity: string;
   updatedAt: string;
-  updatedBy: { id: string; name: string; role: 'admin' | 'manager' | 'employee' } | null;
+  updatedBy: { id: string; name: string; role: 'admin' | 'manager' | 'employee' | 'analytics' } | null;
 }
 
 export interface InventorySessionDetail {
@@ -49,7 +49,7 @@ export interface InventorySessionDetail {
   startedAt: string;
   completedAt: string | null;
   zone: { id: string; name: string };
-  createdBy: { id: string; name: string; email: string; role: 'admin' | 'manager' | 'employee' };
+  createdBy: { id: string; name: string; email: string; role: 'admin' | 'manager' | 'employee' | 'analytics' };
   items: InventorySessionDetailItem[];
 }
 

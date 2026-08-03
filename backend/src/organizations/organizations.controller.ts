@@ -13,7 +13,7 @@ export class OrganizationsController {
   constructor(private readonly service: OrganizationsService) {}
 
   @Get()
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   get(@CurrentUser() user: AuthUser) {
     return this.service.get(user.organizationId);
   }

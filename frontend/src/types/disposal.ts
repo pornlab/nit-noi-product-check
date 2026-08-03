@@ -11,7 +11,7 @@ export interface DisposalSummary {
   id: string;
   createdAt: string;
   zone: { id: string; name: string };
-  createdBy: { id: string; name: string; role: 'admin' | 'manager' | 'employee' };
+  createdBy: { id: string; name: string; role: 'admin' | 'manager' | 'employee' | 'analytics' };
   skuCount: number;
   items: DisposalSummaryItem[];
   totalCost: string | null;

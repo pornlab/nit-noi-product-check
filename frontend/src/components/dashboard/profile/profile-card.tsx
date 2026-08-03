@@ -22,12 +22,14 @@ const roleLabels: Record<UserRole, string> = {
   admin: 'Администратор',
   manager: 'Менеджер',
   employee: 'Сотрудник',
+  analytics: 'Аналитика',
 };
 
-const roleColors: Record<UserRole, 'error' | 'warning' | 'info'> = {
+const roleColors: Record<UserRole, 'error' | 'warning' | 'info' | 'success'> = {
   admin: 'error',
   manager: 'warning',
   employee: 'info',
+  analytics: 'success',
 };
 
 export function ProfileCard(): React.JSX.Element | null {

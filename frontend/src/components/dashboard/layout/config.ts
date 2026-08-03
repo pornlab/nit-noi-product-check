@@ -13,6 +13,16 @@ export function getNavItems(role: UserRole | undefined): NavItemConfig[] {
       { key: 'disposals', title: 'nav.disposals', href: paths.dashboard.disposals, icon: 'trash' },
     ];
   }
+  if (role === 'analytics') {
+    // Аналитика: только чтение. Смотрит те же ключевые страницы, но без «Организация»
+    // (там всё про справочники/пользователей — не её сфера).
+    return [
+      { key: 'inventory', title: 'nav.inventory', href: paths.dashboard.inventory, icon: 'clipboard' },
+      { key: 'receivings', title: 'nav.receivings', href: paths.dashboard.receivings, icon: 'tray-arrow-down' },
+      { key: 'disposals', title: 'nav.disposals', href: paths.dashboard.disposals, icon: 'trash' },
+      { key: 'products', title: 'nav.products', href: paths.dashboard.products, icon: 'package' },
+    ];
+  }
   return [
     { key: 'inventory', title: 'nav.inventory', href: paths.dashboard.inventory, icon: 'clipboard' },
     { key: 'receivings', title: 'nav.receivings', href: paths.dashboard.receivings, icon: 'tray-arrow-down' },

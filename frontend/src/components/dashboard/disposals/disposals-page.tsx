@@ -77,7 +77,7 @@ export function DisposalsPage(): React.JSX.Element {
   const [dateFrom, setDateFrom] = React.useState<string>('');
   const [dateTo, setDateTo] = React.useState<string>('');
   const [zoneId, setZoneId] = React.useState<string>('');
-  const [role, setRole] = React.useState<'' | 'admin' | 'manager' | 'employee'>('');
+  const [role, setRole] = React.useState<'' | 'admin' | 'manager' | 'employee' | 'analytics'>('');
 
   const [zones, setZones] = React.useState<InventoryZoneSummary[]>([]);
   React.useEffect(() => {
@@ -206,6 +206,7 @@ export function DisposalsPage(): React.JSX.Element {
               <MenuItem value="admin">{t('roles.admin')}</MenuItem>
               <MenuItem value="manager">{t('roles.manager')}</MenuItem>
               <MenuItem value="employee">{t('roles.employee')}</MenuItem>
+              <MenuItem value="analytics">{t('roles.analytics')}</MenuItem>
             </Select>
           </FormControl>
         ) : null}

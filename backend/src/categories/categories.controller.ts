@@ -15,13 +15,13 @@ export class CategoriesController {
   constructor(private readonly service: CategoriesService) {}
 
   @Get()
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'analytics')
   list(@CurrentUser() user: AuthUser, @Query() q: CategoryQueryDto) {
     return this.service.list(user.organizationId, { isActive: q.isActive, search: q.search });
   }
 
   @Get(':id')
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'analytics')
   get(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.get(user.organizationId, id);
   }

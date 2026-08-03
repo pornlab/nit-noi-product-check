@@ -15,7 +15,7 @@ export class ProductsController {
   constructor(private readonly service: ProductsService) {}
 
   @Get()
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   list(@CurrentUser() user: AuthUser, @Query() q: ProductQueryDto) {
     return this.service.list(user, {
       search: q.search,
@@ -29,7 +29,7 @@ export class ProductsController {
   }
 
   @Get(':id')
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'analytics')
   get(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.get(user.organizationId, id);
   }

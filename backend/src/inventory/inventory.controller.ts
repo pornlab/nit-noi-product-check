@@ -14,25 +14,25 @@ export class InventoryController {
   constructor(private readonly service: InventoryService) {}
 
   @Get('zones')
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   listZones(@CurrentUser() user: AuthUser) {
     return this.service.listZones(user);
   }
 
   @Get('zones/:zoneId')
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   getZone(@CurrentUser() user: AuthUser, @Param('zoneId', ParseUUIDPipe) zoneId: string) {
     return this.service.getZoneInventory(user, zoneId);
   }
 
   @Get('zones/:zoneId/sessions')
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   listZoneSessions(@CurrentUser() user: AuthUser, @Param('zoneId', ParseUUIDPipe) zoneId: string) {
     return this.service.listZoneSessions(user, zoneId);
   }
 
   @Get('sessions/:sessionId')
-  @Roles('admin', 'manager', 'employee')
+  @Roles('admin', 'manager', 'employee', 'analytics')
   getSession(@CurrentUser() user: AuthUser, @Param('sessionId') sessionId: string) {
     return this.service.getSessionDetail(user, sessionId);
   }

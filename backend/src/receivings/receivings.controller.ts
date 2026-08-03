@@ -14,13 +14,13 @@ export class ReceivingsController {
   constructor(private readonly service: ReceivingsService) {}
 
   @Get()
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'analytics')
   list(@CurrentUser() user: AuthUser) {
     return this.service.list(user);
   }
 
   @Get(':id')
-  @Roles('admin', 'manager')
+  @Roles('admin', 'manager', 'analytics')
   get(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.get(user, id);
   }

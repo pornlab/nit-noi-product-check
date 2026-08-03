@@ -11,6 +11,7 @@ enum Role {
   admin
   manager
   employee
+  analytics
 }
 
 enum Unit {
