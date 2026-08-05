@@ -28,6 +28,22 @@ export const kepple = {
   950: '#042f2c',
 } satisfies PartialColor;
 
+// Красная палитра для локальной разработки. Подмешивается в primary,
+// когда NEXT_PUBLIC_APP_ENV === 'local', чтобы визуально отличать локалку от прода.
+export const localRed = {
+  50: '#fdf3f3',
+  100: '#fbe7e7',
+  200: '#f5c6c6',
+  300: '#eaa1a1',
+  400: '#dd7676',
+  500: '#cd5555',
+  600: '#b53f3f',
+  700: '#94322f',
+  800: '#742828',
+  900: '#5a1f1f',
+  950: '#331010',
+} satisfies PartialColor;
+
 export const neonBlue = {
   50: '#ecf0ff',
   100: '#dde3ff',

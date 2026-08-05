@@ -5,6 +5,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../auth/auth-user';
 import { ProductsService } from './products.service';
+import { ProductAnalyticsService } from './product-analytics.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
@@ -12,7 +13,21 @@ import { ProductQueryDto } from './dto/product-query.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly service: ProductsService) {}
+  constructor(
+    private readonly service: ProductsService,
+    private readonly analytics: ProductAnalyticsService,
+  ) {}
+
+  @Get(':id/analytics')
+  @Roles('admin', 'analytics')
+  analyticsSummary(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.analytics.summary(user, id, from, to);
+  }
 
   @Get()
   @Roles('admin', 'manager', 'employee', 'analytics')

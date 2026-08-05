@@ -1,7 +1,11 @@
 import type { ColorSystemOptions } from '@mui/material/styles';
 
-import { california, kepple, neonBlue, nevada, redOrange, shakespeare, stormGrey } from './colors';
+import { california, kepple, localRed, neonBlue, nevada, redOrange, shakespeare, stormGrey } from './colors';
 import type { ColorScheme } from './types';
+
+// Если запущены локально — красная тема, чтобы визуально отличать от прода.
+const isLocal = process.env.NEXT_PUBLIC_APP_ENV === 'local';
+const primaryPalette = isLocal ? localRed : neonBlue;
 
 export const colorSchemes = {
   dark: {
@@ -35,10 +39,10 @@ export const colorSchemes = {
       },
       neutral: { ...nevada },
       primary: {
-        ...neonBlue,
-        light: neonBlue[300],
-        main: neonBlue[400],
-        dark: neonBlue[500],
+        ...primaryPalette,
+        light: primaryPalette[300],
+        main: primaryPalette[400],
+        dark: primaryPalette[500],
         contrastText: 'var(--mui-palette-common-black)',
       },
       secondary: {
@@ -102,10 +106,10 @@ export const colorSchemes = {
       },
       neutral: { ...stormGrey },
       primary: {
-        ...neonBlue,
-        light: neonBlue[400],
-        main: neonBlue[500],
-        dark: neonBlue[600],
+        ...primaryPalette,
+        light: primaryPalette[400],
+        main: primaryPalette[500],
+        dark: primaryPalette[600],
         contrastText: 'var(--mui-palette-common-white)',
       },
       secondary: {
