@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import RouterLink from 'next/link';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -39,6 +40,7 @@ import { useNotify } from '@/lib/api/notify';
 import { useConfirm } from '@/components/common/confirm-dialog';
 import { useUser } from '@/hooks/use-user';
 import { useI18n } from '@/lib/i18n/provider';
+import { paths } from '@/paths';
 import { unitLabelKey } from '@/lib/i18n/unit';
 import { ProductDialog } from './product-dialog';
 
@@ -51,6 +53,7 @@ export function ProductsPage(): React.JSX.Element {
   const { user } = useUser();
   const { t } = useI18n();
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
+  const canAnalytics = user?.role === 'admin' || user?.role === 'analytics';
   const { notify, view: snack } = useNotify();
   const { confirm, view: confirmView } = useConfirm();
 
@@ -327,9 +330,20 @@ export function ProductsPage(): React.JSX.Element {
                       }}
                     >
                       <TableCell>
-                        <Typography variant="body2">{p.name}</Typography>
+                        {canAnalytics ? (
+                          <Typography
+                            component={RouterLink}
+                            href={paths.dashboard.productAnalytics(p.id)}
+                            variant="body2"
+                            sx={{ color: 'primary.main', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                          >
+                            {p.name}
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2">{p.name}</Typography>
+                        )}
                         {p.category ? (
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                             {p.category.name}{p.category.isActive ? '' : t('products.inactiveCategoryTag')}
                           </Typography>
                         ) : null}

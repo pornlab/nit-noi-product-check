@@ -205,6 +205,41 @@ export interface Dictionary {
     filterStockAll: string;
     filterStockBelowOptimal: string;
     filterStockBelowMin: string;
+    analyticsTitle: string;
+    presetLast7: string;
+    presetLast30: string;
+    presetLast90: string;
+    presetMonth: string;
+    kpiCurrentStock: string;
+    kpiStockValue: string;
+    kpiReceivedPeriod: string;
+    kpiReceivedSum: string;
+    kpiDisposedPeriod: string;
+    kpiDisposedSum: string;
+    kpiDiscrepancy: string;
+    kpiAsOf: string;
+    kpiCount: string;
+    kpiUnitPrice: string;
+    kpiByCost: string;
+    kpiByRealization: string;
+    opsTitle: string;
+    opsColumnDate: string;
+    opsColumnType: string;
+    opsColumnQty: string;
+    opsColumnSum: string;
+    opsColumnZone: string;
+    opsColumnUser: string;
+    opsColumnDoc: string;
+    opsCount: string;
+    opsTypeInventory: string;
+    opsTypeReceiving: string;
+    opsTypeDisposal: string;
+    chartTitle: string;
+    chartLegendStock: string;
+    chartLegendReceived: string;
+    chartLegendDisposed: string;
+    chartAxisNote: string;
+    noDiscrepancyData: string;
 
     // Dialog
     sectionMain: string;
@@ -482,6 +517,41 @@ export const en: Dictionary = {
     filterStockAll: 'All',
     filterStockBelowOptimal: 'Below optimal',
     filterStockBelowMin: 'Below minimum',
+    analyticsTitle: 'Products',
+    presetLast7: 'Last 7 days',
+    presetLast30: 'Last 30 days',
+    presetLast90: 'Last 90 days',
+    presetMonth: 'This month',
+    kpiCurrentStock: 'In stock now',
+    kpiStockValue: 'Stock value',
+    kpiReceivedPeriod: 'Received in period',
+    kpiReceivedSum: 'Receiving sum',
+    kpiDisposedPeriod: 'Disposed in period',
+    kpiDisposedSum: 'Disposal sum',
+    kpiDiscrepancy: 'Discrepancy (last inv.)',
+    kpiAsOf: 'as of {date}',
+    kpiCount: '{n} operations',
+    kpiUnitPrice: '{price} {sym}/{unit}',
+    kpiByCost: 'by cost',
+    kpiByRealization: 'by realization price',
+    opsTitle: 'Operations',
+    opsColumnDate: 'Date',
+    opsColumnType: 'Type',
+    opsColumnQty: 'Qty',
+    opsColumnSum: 'Sum',
+    opsColumnZone: 'Zone',
+    opsColumnUser: 'User',
+    opsColumnDoc: 'Document',
+    opsCount: '{n} operations',
+    opsTypeInventory: 'Inventory',
+    opsTypeReceiving: 'Receiving',
+    opsTypeDisposal: 'Disposal',
+    chartTitle: 'Movement and inventory',
+    chartLegendStock: 'Stock / inventory',
+    chartLegendReceived: 'Received',
+    chartLegendDisposed: 'Disposed',
+    chartAxisNote: 'Left axis — stock; right axis — daily receipts / disposals',
+    noDiscrepancyData: 'Need 2+ inventories',
 
     sectionMain: 'General',
     sectionIdentifiers: 'Identifiers',
