@@ -104,10 +104,10 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
 
   const load = React.useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
-    const { data, error } = await productsApi.analytics(productId, dateFrom, dateTo);
+    const { data, error } = await productsApi.analytics(productId, dateFrom, dateTo, zoneFilter || undefined);
     if (error) setState({ loading: false, error: error.message, data: null });
     else setState({ loading: false, error: null, data: data ?? null });
-  }, [productId, dateFrom, dateTo]);
+  }, [productId, dateFrom, dateTo, zoneFilter]);
 
   React.useEffect(() => { void load(); }, [load]);
 
@@ -133,10 +133,7 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
   const d = state.data;
   const unit = t(unitLabelKey(d.product.baseUnit as Unit));
   const sym = currencySymbol(d.currentStockValue.currency ?? 'THB');
-  const filteredOps = zoneFilter
-    ? d.operations.filter((op) => op.zone?.id === zoneFilter)
-    : d.operations;
-  const dailyByDate = buildDailyBuckets(filteredOps, dateFrom, dateTo);
+  const dailyByDate = buildDailyBuckets(d.operations, dateFrom, dateTo);
 
   return (
     <Stack spacing={2}>
@@ -313,7 +310,7 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
         <Stack direction="row" alignItems="center" sx={{ p: '12px 20px' }}>
           <Typography variant="h6" sx={{ flex: 1 }}>{t('products.opsTitle')}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {t('products.opsCount', { n: filteredOps.length })}
+            {t('products.opsCount', { n: d.operations.length })}
           </Typography>
         </Stack>
         <Divider />
@@ -331,7 +328,7 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredOps.map((op, idx) => {
+              {d.operations.map((op, idx) => {
                 const qtyNum = Number(op.quantity);
                 const isNeg = qtyNum < 0;
                 const isPos = qtyNum > 0 && op.type === 'receiving';
@@ -361,7 +358,7 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
                   </TableRow>
                 );
               })}
-              {filteredOps.length === 0 ? (
+              {d.operations.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} sx={{ color: 'text.secondary', textAlign: 'center', py: 3 }}>
                     {t('common.nothingFound')}

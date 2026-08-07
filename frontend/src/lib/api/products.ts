@@ -34,8 +34,8 @@ export const productsApi = {
     apiRequest<Product>('/products', { method: 'POST', body: input }),
   update: (id: string, input: UpdateProductInput) =>
     apiRequest<Product>(`/products/${id}`, { method: 'PATCH', body: input }),
-  analytics: (id: string, from?: string, to?: string) =>
+  analytics: (id: string, from?: string, to?: string, zoneId?: string) =>
     apiRequest<ProductAnalyticsSummary>(
-      `/products/${id}/analytics` + qs({ from, to }),
+      `/products/${id}/analytics` + qs({ from, to, zoneId }),
     ),
 };

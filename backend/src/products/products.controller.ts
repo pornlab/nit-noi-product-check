@@ -25,8 +25,9 @@ export class ProductsController {
     @Param('id') id: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('zoneId') zoneId?: string,
   ) {
-    return this.analytics.summary(user, id, from, to);
+    return this.analytics.summary(user, id, from, to, zoneId);
   }
 
   @Get()
