@@ -19,6 +19,7 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
@@ -26,6 +27,8 @@ import Typography from '@mui/material/Typography';
 
 import type { ProductAnalyticsSummary } from '@/types/product-analytics';
 import { productsApi } from '@/lib/api/products';
+import { zonesApi } from '@/lib/api/zones';
+import type { Zone } from '@/types/zone';
 import { currencySymbol } from '@/types/disposal';
 import { useI18n } from '@/lib/i18n/provider';
 import { unitLabelKey } from '@/lib/i18n/unit';
@@ -74,6 +77,15 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
   const [preset, setPreset] = React.useState<Preset>('7d');
   const [dateFrom, setDateFrom] = React.useState<string>(daysAgoIso(6));
   const [dateTo, setDateTo] = React.useState<string>(todayIso());
+  const [zoneFilter, setZoneFilter] = React.useState<string>('');
+  const [zones, setZones] = React.useState<Zone[]>([]);
+
+  React.useEffect(() => {
+    void (async () => {
+      const { data } = await zonesApi.list();
+      if (data) setZones(data);
+    })();
+  }, []);
 
   const applyPreset = (p: Preset): void => {
     setPreset(p);
@@ -121,7 +133,10 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
   const d = state.data;
   const unit = t(unitLabelKey(d.product.baseUnit as Unit));
   const sym = currencySymbol(d.currentStockValue.currency ?? 'THB');
-  const dailyByDate = buildDailyBuckets(d.operations, dateFrom, dateTo);
+  const filteredOps = zoneFilter
+    ? d.operations.filter((op) => op.zone?.id === zoneFilter)
+    : d.operations;
+  const dailyByDate = buildDailyBuckets(filteredOps, dateFrom, dateTo);
 
   return (
     <Stack spacing={2}>
@@ -152,6 +167,18 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
             />
           </Stack>
         </Stack>
+
+        <TextField
+          select size="small" label={t('products.filterZoneLabel')}
+          value={zoneFilter}
+          onChange={(e) => setZoneFilter(e.target.value)}
+          sx={{ minWidth: 180 }}
+        >
+          <MenuItem value="">{t('products.filterZoneAll')}</MenuItem>
+          {zones.map((z) => (
+            <MenuItem key={z.id} value={z.id}>{z.name}</MenuItem>
+          ))}
+        </TextField>
 
         <Stack spacing={1}>
           <ToggleButtonGroup
@@ -286,7 +313,7 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
         <Stack direction="row" alignItems="center" sx={{ p: '12px 20px' }}>
           <Typography variant="h6" sx={{ flex: 1 }}>{t('products.opsTitle')}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {t('products.opsCount', { n: d.operations.length })}
+            {t('products.opsCount', { n: filteredOps.length })}
           </Typography>
         </Stack>
         <Divider />
@@ -304,7 +331,7 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
               </TableRow>
             </TableHead>
             <TableBody>
-              {d.operations.map((op, idx) => {
+              {filteredOps.map((op, idx) => {
                 const qtyNum = Number(op.quantity);
                 const isNeg = qtyNum < 0;
                 const isPos = qtyNum > 0 && op.type === 'receiving';
@@ -334,7 +361,7 @@ export function ProductAnalyticsPage({ productId }: { productId: string }): Reac
                   </TableRow>
                 );
               })}
-              {d.operations.length === 0 ? (
+              {filteredOps.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} sx={{ color: 'text.secondary', textAlign: 'center', py: 3 }}>
                     {t('common.nothingFound')}
