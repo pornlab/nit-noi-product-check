@@ -35,7 +35,7 @@ function dayRange(from?: string, to?: string): { gte: Date; lte: Date } {
 export class ProductAnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async summary(user: AuthUser, productId: string, from?: string, to?: string): Promise<ProductAnalyticsSummary> {
+  async summary(user: AuthUser, productId: string, from?: string, to?: string, zoneId?: string): Promise<ProductAnalyticsSummary> {
     if (user.role !== 'admin' && user.role !== 'analytics') {
       throw new ForbiddenException('Аналитика доступна только владельцу');
     }
@@ -50,7 +50,8 @@ export class ProductAnalyticsService {
     // --- Последняя цена (для стоимости остатка и оценки утилизаций) ---
     const lastPrice = await this.loadLastPrice(user.organizationId, productId);
 
-    // --- Текущий остаток (M + N − D по всем зонам) ---
+    // --- Текущий остаток (M + N − D по всем зонам, или по одной если zoneId) ---
+    const zoneFilterInv = zoneId ? Prisma.sql`AND s."zoneId" = ${zoneId}` : Prisma.empty;
     const invRows = await this.prisma.$queryRaw<
       Array<{ zoneId: string; quantity: Prisma.Decimal; completedAt: Date }>
     >`
@@ -61,6 +62,7 @@ export class ProductAnalyticsService {
       WHERE s."organizationId" = ${user.organizationId}
         AND s.status = 'COMPLETED' AND s."completedAt" IS NOT NULL
         AND ii."productId" = ${productId}
+        ${zoneFilterInv}
       ORDER BY s."zoneId", s."completedAt" DESC, s.id DESC
     `;
     // Приходы/утилизации после последней инвентаризации по каждой зоне (или все, если инв не было).
@@ -71,6 +73,8 @@ export class ProductAnalyticsService {
       invByZone.set(r.zoneId, r.completedAt);
     }
     // Зоны, где были движения без инвентаризации.
+    const zoneFilterRa = zoneId ? Prisma.sql`AND ra."zoneId" = ${zoneId}` : Prisma.empty;
+    const zoneFilterD = zoneId ? Prisma.sql`AND d."zoneId" = ${zoneId}` : Prisma.empty;
     const movementZones = await this.prisma.$queryRaw<Array<{ zoneId: string }>>`
       SELECT DISTINCT z FROM (
         SELECT ra."zoneId" AS z
@@ -78,11 +82,13 @@ export class ProductAnalyticsService {
         JOIN "receiving_items" ri ON ri.id = ra."receivingItemId"
         JOIN "receivings" r ON r.id = ri."receivingId"
         WHERE r."organizationId" = ${user.organizationId} AND ri."productId" = ${productId}
+          ${zoneFilterRa}
         UNION
         SELECT d."zoneId" AS z
         FROM "disposal_items" di
         JOIN "disposals" d ON d.id = di."disposalId"
         WHERE d."organizationId" = ${user.organizationId} AND di."productId" = ${productId}
+          ${zoneFilterD}
       ) t (z)
     `;
     for (const z of movementZones) if (!invByZone.has(z.zoneId)) invByZone.set(z.zoneId, new Date('2000-01-01'));
@@ -141,25 +147,50 @@ export class ProductAnalyticsService {
     const stockValue = lastPrice ? stockQty.times(lastPrice.unitPrice).toDecimalPlaces(2) : null;
 
     // --- Аггрегаты за диапазон: приходы ---
-    const recInPeriod = await this.prisma.receivingItem.findMany({
-      where: {
-        productId,
-        receiving: {
-          organizationId: user.organizationId,
-          receivedAt: { gte: range.gte, lte: range.lte },
+    let receivedSum: { qty: Prisma.Decimal; cost: Prisma.Decimal };
+    let receivedCount: number;
+    if (zoneId) {
+      // По зоне: считаем через allocations, стоимость проратируем на долю зоны в позиции.
+      const rows = await this.prisma.$queryRaw<
+        Array<{ qty: Prisma.Decimal; cost: Prisma.Decimal; cnt: bigint }>
+      >`
+        SELECT COALESCE(SUM(ra.quantity), 0) AS qty,
+               COALESCE(SUM(ri.cost * ra.quantity / NULLIF(ri.quantity, 0)), 0) AS cost,
+               COUNT(*) AS cnt
+        FROM "receiving_allocations" ra
+        JOIN "receiving_items" ri ON ri.id = ra."receivingItemId"
+        JOIN "receivings" r ON r.id = ri."receivingId"
+        WHERE r."organizationId" = ${user.organizationId}
+          AND ri."productId" = ${productId}
+          AND ra."zoneId" = ${zoneId}
+          AND r."receivedAt" BETWEEN ${range.gte} AND ${range.lte}
+      `;
+      const row = rows[0];
+      receivedSum = {
+        qty: new Prisma.Decimal(row?.qty ?? 0),
+        cost: new Prisma.Decimal(row?.cost ?? 0).toDecimalPlaces(2),
+      };
+      receivedCount = Number(row?.cnt ?? 0);
+    } else {
+      const recInPeriod = await this.prisma.receivingItem.findMany({
+        where: {
+          productId,
+          receiving: {
+            organizationId: user.organizationId,
+            receivedAt: { gte: range.gte, lte: range.lte },
+          },
         },
-      },
-      select: {
-        quantity: true, cost: true, receiving: { select: { currency: true } },
-      },
-    });
-    const receivedSum = recInPeriod.reduce(
-      (acc, it) => ({
-        qty: acc.qty.plus(it.quantity),
-        cost: acc.cost.plus(it.cost),
-      }),
-      { qty: new Prisma.Decimal(0), cost: new Prisma.Decimal(0) },
-    );
+        select: { quantity: true, cost: true },
+      });
+      receivedSum = recInPeriod.reduce(
+        (acc, it) => ({
+          qty: acc.qty.plus(it.quantity),
+          cost: acc.cost.plus(it.cost),
+        }),
+        { qty: new Prisma.Decimal(0), cost: new Prisma.Decimal(0) },
+      );
+      receivedCount = recInPeriod.length;
+    }
 
     // --- Аггрегаты за диапазон: утилизации (в стоимости — по последней цене) ---
     const dispInPeriod = await this.prisma.disposalItem.findMany({
@@ -168,6 +199,7 @@ export class ProductAnalyticsService {
         disposal: {
           organizationId: user.organizationId,
           createdAt: { gte: range.gte, lte: range.lte },
+          ...(zoneId ? { zoneId } : {}),
         },
       },
       select: { quantity: true },
@@ -175,11 +207,11 @@ export class ProductAnalyticsService {
     const disposedQty = dispInPeriod.reduce((acc, it) => acc.plus(it.quantity), new Prisma.Decimal(0));
     const disposedCost = lastPrice ? disposedQty.times(lastPrice.unitPrice).toDecimalPlaces(2) : null;
 
-    // --- Расхождение по последней инвентаризации в диапазоне (по всем зонам суммарно) ---
-    const discrepancy = await this.computeDiscrepancy(user.organizationId, productId, range);
+    // --- Расхождение по последней инвентаризации в диапазоне ---
+    const discrepancy = await this.computeDiscrepancy(user.organizationId, productId, range, zoneId);
 
     // --- Операции за диапазон ---
-    const operations = await this.loadOperations(user.organizationId, productId, range, lastPrice);
+    const operations = await this.loadOperations(user.organizationId, productId, range, lastPrice, zoneId);
     operations.sort((a, b) => (a.date < b.date ? 1 : -1));
 
     return {
@@ -198,7 +230,7 @@ export class ProductAnalyticsService {
         unitPrice: lastPrice ? lastPrice.unitPrice.toString() : null,
         currency: lastPrice?.currency ?? null,
       },
-      received: { quantity: receivedSum.qty.toString(), cost: receivedSum.cost.toString(), count: recInPeriod.length },
+      received: { quantity: receivedSum.qty.toString(), cost: receivedSum.cost.toString(), count: receivedCount },
       disposed: {
         quantity: disposedQty.toString(),
         cost: disposedCost ? disposedCost.toString() : null,
@@ -229,8 +261,12 @@ export class ProductAnalyticsService {
     return { unitPrice: new Prisma.Decimal(row.cost).div(q), currency: row.currency };
   }
 
-  private async computeDiscrepancy(orgId: string, productId: string, range: { gte: Date; lte: Date }) {
-    // Самая свежая инвентаризация в диапазоне (по всем зонам продукта — берём сумму).
+  private async computeDiscrepancy(orgId: string, productId: string, range: { gte: Date; lte: Date }, zoneId?: string) {
+    const zFilterS = zoneId ? Prisma.sql`AND s."zoneId" = ${zoneId}` : Prisma.empty;
+    const zFilterRa = zoneId ? Prisma.sql`AND ra."zoneId" = ${zoneId}` : Prisma.empty;
+    const zFilterD = zoneId ? Prisma.sql`AND d."zoneId" = ${zoneId}` : Prisma.empty;
+
+    // Самая свежая инвентаризация в диапазоне.
     const latest = await this.prisma.$queryRaw<
       Array<{ completedAt: Date }>
     >`
@@ -241,6 +277,7 @@ export class ProductAnalyticsService {
         AND s.status = 'COMPLETED' AND s."completedAt" IS NOT NULL
         AND ii."productId" = ${productId}
         AND s."completedAt" BETWEEN ${range.gte} AND ${range.lte}
+        ${zFilterS}
     `;
     const latestAt = latest[0]?.completedAt;
     if (!latestAt) return null;
@@ -256,11 +293,12 @@ export class ProductAnalyticsService {
         AND s.status = 'COMPLETED' AND s."completedAt" IS NOT NULL
         AND ii."productId" = ${productId}
         AND s."completedAt" < ${latestAt}
+        ${zFilterS}
     `;
     const prevAt = prev[0]?.completedAt;
     if (!prevAt) return null;
 
-    // Сумма количеств на latest / prev (по всем зонам, где были).
+    // Сумма количеств на latest / prev (по всем зонам, где были; или по одной если zoneId).
     const sumAt = async (at: Date): Promise<Prisma.Decimal> => {
       const rows = await this.prisma.$queryRaw<Array<{ qty: Prisma.Decimal }>>`
         SELECT COALESCE(SUM(ii.quantity), 0) AS qty
@@ -273,6 +311,7 @@ export class ProductAnalyticsService {
             AND s.status = 'COMPLETED' AND s."completedAt" IS NOT NULL
             AND ii."productId" = ${productId}
             AND s."completedAt" <= ${at}
+            ${zFilterS}
           ORDER BY s."zoneId", s."completedAt" DESC, s.id DESC
         ) ii
       `;
@@ -281,7 +320,7 @@ export class ProductAnalyticsService {
     const latestQty = await sumAt(latestAt);
     const prevQty = await sumAt(prevAt);
 
-    // Приходы и утилизации в интервале (prevAt, latestAt] по всем зонам продукта.
+    // Приходы и утилизации в интервале (prevAt, latestAt].
     const inR = await this.prisma.$queryRaw<Array<{ qty: Prisma.Decimal }>>`
       SELECT COALESCE(SUM(ra.quantity), 0) AS qty
       FROM "receiving_allocations" ra
@@ -291,6 +330,7 @@ export class ProductAnalyticsService {
         AND ri."productId" = ${productId}
         AND r."receivedAt" > (${prevAt})::date
         AND r."receivedAt" <= (${latestAt})::date
+        ${zFilterRa}
     `;
     const inD = await this.prisma.$queryRaw<Array<{ qty: Prisma.Decimal }>>`
       SELECT COALESCE(SUM(di.quantity), 0) AS qty
@@ -300,6 +340,7 @@ export class ProductAnalyticsService {
         AND di."productId" = ${productId}
         AND d."createdAt" > ${prevAt}
         AND d."createdAt" <= ${latestAt}
+        ${zFilterD}
     `;
     const received = new Prisma.Decimal(inR[0]?.qty ?? 0);
     const disposed = new Prisma.Decimal(inD[0]?.qty ?? 0);
@@ -313,6 +354,7 @@ export class ProductAnalyticsService {
     productId: string,
     range: { gte: Date; lte: Date },
     lastPrice: { unitPrice: Prisma.Decimal; currency: string } | null,
+    zoneId?: string,
   ): Promise<ProductAnalyticsOperation[]> {
     const ops: ProductAnalyticsOperation[] = [];
 
@@ -321,6 +363,7 @@ export class ProductAnalyticsService {
       where: {
         productId,
         receiving: { organizationId: orgId, receivedAt: { gte: range.gte, lte: range.lte } },
+        ...(zoneId ? { allocations: { some: { zoneId } } } : {}),
       },
       include: {
         receiving: { select: { id: true, receivedAt: true, sequenceNumber: true, currency: true, createdBy: { select: { id: true, name: true, role: true } } } },
@@ -330,25 +373,50 @@ export class ProductAnalyticsService {
       },
     });
     for (const r of rec) {
-      // По распределению может быть несколько зон — но операция одна, зона — «первая» или пусто.
-      const zone = r.allocations[0]?.zone ?? null;
-      ops.push({
-        date: r.receiving.receivedAt.toISOString().slice(0, 10),
-        type: 'receiving',
-        quantity: `+${r.quantity.toString()}`,
-        cost: r.cost.toString(),
-        currency: r.receiving.currency,
-        zone,
-        user: r.receiving.createdBy,
-        docRef: `ПН-${String(r.receiving.sequenceNumber).padStart(6, '0')}`,
-      });
+      if (zoneId) {
+        // Одна операция на аллокацию в выбранной зоне — количество и стоимость по её доле.
+        const totalQty = new Prisma.Decimal(r.quantity);
+        for (const a of r.allocations) {
+          if (a.zoneId !== zoneId) continue;
+          const aq = new Prisma.Decimal(a.quantity);
+          const cost = totalQty.isZero()
+            ? '0'
+            : new Prisma.Decimal(r.cost).times(aq).div(totalQty).toDecimalPlaces(2).toString();
+          ops.push({
+            date: r.receiving.receivedAt.toISOString().slice(0, 10),
+            type: 'receiving',
+            quantity: `+${aq.toString()}`,
+            cost,
+            currency: r.receiving.currency,
+            zone: a.zone,
+            user: r.receiving.createdBy,
+            docRef: `ПН-${String(r.receiving.sequenceNumber).padStart(6, '0')}`,
+          });
+        }
+      } else {
+        const zone = r.allocations[0]?.zone ?? null;
+        ops.push({
+          date: r.receiving.receivedAt.toISOString().slice(0, 10),
+          type: 'receiving',
+          quantity: `+${r.quantity.toString()}`,
+          cost: r.cost.toString(),
+          currency: r.receiving.currency,
+          zone,
+          user: r.receiving.createdBy,
+          docRef: `ПН-${String(r.receiving.sequenceNumber).padStart(6, '0')}`,
+        });
+      }
     }
 
     // Утилизации
     const disp = await this.prisma.disposalItem.findMany({
       where: {
         productId,
-        disposal: { organizationId: orgId, createdAt: { gte: range.gte, lte: range.lte } },
+        disposal: {
+          organizationId: orgId,
+          createdAt: { gte: range.gte, lte: range.lte },
+          ...(zoneId ? { zoneId } : {}),
+        },
       },
       include: {
         disposal: { select: { id: true, createdAt: true, zone: { select: { id: true, name: true } }, createdBy: { select: { id: true, name: true, role: true } } } },
@@ -376,6 +444,7 @@ export class ProductAnalyticsService {
           organizationId: orgId,
           status: 'COMPLETED',
           completedAt: { gte: range.gte, lte: range.lte },
+          ...(zoneId ? { zoneId } : {}),
         },
       },
       include: {
